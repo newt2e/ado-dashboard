@@ -14,7 +14,7 @@ jobs:
 
       - name: Get ADO Data
         run: |
-          curl -u :${{ secrets.ADO_PAT }} "https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite/" -o data/dashboard.json
+          curl -u :${{ secrets.ADO_PAT }} "curl -u :${{ secrets.ADO_PAT }} "https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite/Gartner%20-%20SQ%20Transformation/_apis/wit/workitems?ids=1&api-version=7.1" -o data/dashboard.json" -o data/dashboard.json
 
       - name: Commit Changes
         run: |
