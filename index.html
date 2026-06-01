@@ -596,7 +596,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
 
   // Feature/Story/Task rows
   hierarchy.forEach(ws=>{
-    const isExpF = G.expandedWS[ws.ws] !== false; // default expanded
+    const isExpF = G.expandedWS[ws.ws] === true; // default collapsed
     const wsc = WS_COLORS[ws.ws];
     const fLeft = tlPct(ws.feature.start), fW = tlW(ws.feature.start, ws.feature.target);
     const allChildren = ws.stories.flatMap(s=>[s.story,...s.tasks]);
@@ -679,7 +679,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
 }
 
 function toggleWS(ws){
-  G.expandedWS[ws] = G.expandedWS[ws] === false ? true : false;
+  G.expandedWS[ws] = G.expandedWS[ws] === true ? false : true;
   render();
 }
 function toggleStory(id){
