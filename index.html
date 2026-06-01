@@ -160,7 +160,6 @@ tr:hover td{background:var(--surface2)}
 .row-task:hover{background:var(--surface2)}
 .name-cell{padding:0 10px;display:flex;align-items:center;gap:7px;position:sticky;left:0;border-right:1px solid var(--border);z-index:2;flex-shrink:0}
 .time-cell{flex:1;position:relative;min-height:inherit}
-.gantt-footer{display:flex;border-top:2px solid var(--border);background:#f0fdf4;min-height:28px}
 
 /* ── FILTER PILLS ── */
 .filter-bar{display:flex;gap:5px;flex-wrap:wrap;align-items:center;padding:7px 0 9px;border-bottom:1px solid var(--border);margin-bottom:8px}
@@ -262,11 +261,10 @@ tr:hover td{background:var(--surface2)}
   <button class="nav-item" id="nv-mytasks" onclick="setTab('mytasks')"><span class="icon">👤</span>My Tasks</button>
   <button class="nav-item" id="nv-weekly" onclick="setTab('weekly')"><span class="icon">📈</span>Weekly Analysis</button>
   <button class="nav-item" id="nav-sync-action" onclick="quickSync()" style="margin-top:4px;border:1px solid var(--border2);font-weight:600"><span class="icon" id="nav-sync-icon2">↻</span><span id="nav-sync-label2">Sync Now</span></button>
+  <div class="sync-info" id="sync-info" style="padding:4px 12px;font-size:10px;color:#475569">Not connected</div>
   <div class="nav-section" style="margin-top:8px">Team</div>
   <div id="nav-team"></div>
   <div class="nav-bottom">
-    <div class="sync-info" id="sync-info">Not connected<br>BP Go-Live: Aug 2026</div>
-    <button class="nav-item" onclick="doDisconnect()" style="margin-top:8px;color:#ef4444;border:1px solid #fecaca;border-radius:8px"><span class="icon">⏻</span>Logout</button>
   </div>
 </nav>
 
@@ -297,7 +295,6 @@ const OWNER_META = {
   Zakki:   {color:"#475569",role:"Communications"},
 };
 const STATES = ["In Progress","Active","Yet to Start","New","Closed"];
-const GO_LIVE = new Date("2026-08-01");
 const TL_START = new Date("2026-04-01");
 const TL_END   = new Date("2026-10-31");
 const TL_MS    = TL_END - TL_START;
@@ -351,7 +348,9 @@ function fmtDate(s){
 }
 function fmtDateFull(s){
   if(!s) return "";
-  return new Date(s).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+  const d = new Date(s);
+  return d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})
+    + " " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
 }
 function genId(){ return Math.random().toString(36).slice(2,9); }
 
@@ -469,8 +468,8 @@ function buildNav(){
 
   const si = document.getElementById("sync-info");
   if(si) si.innerHTML = G.connected
-    ? (G.lastSync ? `Synced ${fmtDateFull(G.lastSync)}<br>BP Go-Live: Aug 2026` : `Connected · loading…<br>BP Go-Live: Aug 2026`)
-    : `Not connected<br>BP Go-Live: Aug 2026`;
+    ? (G.lastSync ? `Synced ${fmtDateFull(G.lastSync)}` : `Connected · loading…`)
+    : `Not connected`;
 
   // Update Sync Now nav button
   const syncAction = document.getElementById("nav-sync-action");
@@ -567,14 +566,13 @@ function buildHierarchy(items){
 function ganttHTML(items, NAME_W=300, showFeat=true){
   const months = buildGanttMonths();
   const todayPct = tlPct(new Date().toISOString().slice(0,10));
-  const goLivePct = tlPct("2026-08-01");
   const hierarchy = buildHierarchy(items);
 
   // Grid lines
   const gridLines = months.map(m=>`<div style="position:absolute;left:${m.left}%;top:0;bottom:0;border-left:1px solid #f1f5f9;pointer-events:none"></div>`).join("");
   // Today/GoLive
   const todayLine = `<div style="position:absolute;left:${todayPct}%;top:0;bottom:0;border-left:1.5px dashed #ef444488;z-index:4;pointer-events:none"></div>`;
-  const goliveLine = `<div style="position:absolute;left:${goLivePct}%;top:0;bottom:0;border-left:2px solid #10b98188;z-index:4;pointer-events:none"></div>`;
+  const goliveLine = "";
 
   let html = `<div class="gantt-outer"><div class="gantt-inner" style="min-width:${NAME_W+600}px">`;
 
@@ -586,9 +584,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
       <div style="position:absolute;left:${todayPct}%;top:0;bottom:0;border-left:1.5px dashed #ef4444;z-index:5;pointer-events:none">
         <div style="position:absolute;bottom:2px;left:3px;font-size:9px;font-weight:700;color:#ef4444;white-space:nowrap">Today</div>
       </div>
-      <div style="position:absolute;left:${goLivePct}%;top:0;bottom:0;border-left:2px solid #10b981aa;z-index:5;pointer-events:none">
-        <div style="position:absolute;bottom:2px;left:3px;font-size:9px;font-weight:700;color:#065f46;white-space:nowrap">Go-Live</div>
-      </div>
+
     </div>
   </div>`;
 
@@ -657,21 +653,6 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
     }
   });
 
-  // Footer
-  html += `<div class="gantt-footer">
-    <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#f0fdf4;border-right:1px solid var(--border)">
-      <span style="font-size:14px">🎯</span>
-      <span style="font-size:12px;font-weight:700;color:#065f46">BP Pilot Go-Live</span>
-      <span class="badge badge-green">Aug 2026</span>
-    </div>
-    <div class="time-cell" style="min-height:28px;background:#f0fdf4">
-      ${gridLines}
-      <div style="position:absolute;left:${goLivePct}%;top:0;bottom:0;border-left:2.5px solid #10b981;z-index:4">
-        <div style="position:absolute;top:50%;transform:translateY(-50%);left:5px;background:#10b981;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;white-space:nowrap">Wave 1 Go-Live</div>
-      </div>
-    </div>
-  </div>`;
-
   html += `</div></div>`;
   return html;
 }
@@ -694,7 +675,11 @@ function filterBarHTML(pool, fOwner, fWS, fQ, onChange, showSearch=false){
   const pillStyle = (on, col) => `padding:2px 9px;border-radius:20px;border:1px solid ${on?col:"var(--border2)"};background:${on?col+"22":"transparent"};color:${on?col:"var(--text2)"};font-size:11px;cursor:pointer;white-space:nowrap;font-weight:${on?600:400}`;
 
   return `<div class="filter-bar">
-    ${showSearch?`<input class="inp" placeholder="Search…" value="${fQ||""}" oninput="${onChange}('q',this.value)" style="width:130px;padding:3px 8px;font-size:11px;height:24px">`:""}
+    ${showSearch?(()=>{
+      const sid = onChange==="filterOD"?"od-search-inp":"tw-search-inp";
+      const sfn = onChange==="filterOD"?"odSearch":"twSearch";
+      return `<input class="inp" id="${sid}" placeholder="Search\u2026" value="${fQ||""}" oninput="${sfn}(this.value)" style="width:130px;padding:3px 8px;font-size:11px;height:24px">`;
+    })():""}
     ${wss.length>1?`<select class="inp" onchange="${onChange}('ws',this.value)" style="width:170px;padding:2px 6px;font-size:11px;height:24px">
       <option value="All"${fWS==="All"?" selected":""}>All workstreams</option>
       ${wss.map(w=>`<option value="${w}"${fWS===w?" selected":""}>${w}: ${WS_META[w]?.name||w}</option>`).join("")}
@@ -768,6 +753,39 @@ window.filterTW = (k,v)=>filterChange("tw",k,v);
 window.filterHome = (k,v)=>filterChange("home",k,v);
 window.filterCall = (k,v)=>filterChange("call",k,v);
 window.filterAll = (k,v)=>filterChange("all",k,v);
+// Debounced search for All Items — prevents re-render destroying focus
+var _allSearchTimer = null;
+window.allSearch = function(val){
+  F.allQ = val;
+  clearTimeout(_allSearchTimer);
+  _allSearchTimer = setTimeout(function(){
+    var el = document.getElementById('all-search-inp');
+    var pos = el ? el.selectionStart : null;
+    render();
+    requestAnimationFrame(function(){
+      var el2 = document.getElementById('all-search-inp');
+      if(el2){ el2.focus(); if(pos!==null) el2.setSelectionRange(pos,pos); }
+    });
+  }, 120);
+};
+// Debounced search for OD/TW — preserves scroll position
+function _filterSearch(ns, val, inputId){
+  F[ns].q = val;
+  var mc = document.getElementById('main-content');
+  var scrollY = mc ? mc.scrollTop : 0;
+  var inp = document.getElementById(inputId);
+  var pos = inp ? inp.selectionStart : val.length;
+  render();
+  requestAnimationFrame(function(){
+    var mc2 = document.getElementById('main-content');
+    if(mc2) mc2.scrollTop = scrollY;
+    var inp2 = document.getElementById(inputId);
+    if(inp2){ inp2.focus(); inp2.setSelectionRange(pos, pos); }
+  });
+}
+var _odTimer=null, _twTimer=null;
+window.odSearch = function(val){ clearTimeout(_odTimer); _odTimer=setTimeout(function(){ _filterSearch('od',val,'od-search-inp'); },120); };
+window.twSearch = function(val){ clearTimeout(_twTimer); _twTimer=setTimeout(function(){ _filterSearch('tw',val,'tw-search-inp'); },120); };
 window.toggleWS = toggleWS;
 window.toggleStory = toggleStory;
 window.openNav  = function(){ document.getElementById('nav').classList.add('open'); document.getElementById('nav-overlay').classList.add('open'); };
@@ -818,7 +836,6 @@ window.render = render;
 function renderOverview(){
   const items = effectiveItems();
   const today = new Date();
-  const goLiveDays = Math.round((GO_LIVE-today)/86400000);
   const overdue  = items.filter(i=>urgency(i)==="overdue");
   const thisweek = items.filter(i=>urgency(i)==="thisweek");
   const inprog   = items.filter(i=>["In Progress","Active"].includes(i.state));
@@ -836,15 +853,8 @@ function renderOverview(){
     return {ws,...WS_META[ws],total:its.length,closed:c,overdue:od,inprog:ip,pct:its.length?Math.round(c/its.length*100):0,items:its};
   });
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px">
-    <div>
-      <h2 style="font-size:18px;font-weight:600">Project Overview</h2>
-      <p style="font-size:12px;color:var(--text2);margin-top:3px">New Time2Eat Migration — WS3 · BP Pilot Go-Live Aug 2026</p>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:24px;font-weight:700;color:${goLiveDays<60?"var(--red-t)":"var(--green-t)"}">${goLiveDays}</div>
-      <div style="font-size:11px;color:var(--text2)">days to go-live</div>
-    </div>
+  let html = `<div style="margin-bottom:20px">
+    <h2 style="font-size:18px;font-weight:600">Project Overview</h2>
   </div>
 
   <div class="metric-grid">
@@ -1017,7 +1027,7 @@ function renderAll(){
 
   return `<div class="page-header"><h2>All Items</h2><p>${filtered.length} of ${items.length} items</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <input class="inp" placeholder="Search…" value="${F.allQ}" oninput="filterAll('q',this.value)" style="width:200px">
+      <input class="inp" id="all-search-inp" placeholder="Search…" value="${F.allQ}" oninput="allSearch(this.value)" style="width:200px">
       <select class="inp" onchange="filterAll('ws',this.value)" style="width:180px">
         <option value="All"${F.allWS==="All"?" selected":""}>All workstreams</option>
         ${Object.entries(WS_META).map(([k,v])=>`<option value="${k}"${F.allWS===k?" selected":""}>${k}: ${v.name}</option>`).join("")}
@@ -1076,7 +1086,6 @@ function renderOwner(owner){
 
   const months = buildGanttMonths();
   const todayPct = tlPct(new Date().toISOString().slice(0,10));
-  const goLivePct2 = tlPct("2026-08-01");
   const NAME_W_OWN = 260;
 
   const byWS = Object.keys(WS_META)
@@ -1085,7 +1094,7 @@ function renderOwner(owner){
 
   const gridL = months.map(m=>`<div style="position:absolute;left:${m.left}%;top:0;bottom:0;border-left:1px solid #f1f5f9;pointer-events:none"></div>`).join("");
   const todayL = `<div style="position:absolute;left:${todayPct}%;top:0;bottom:0;border-left:1.5px dashed #ef444466;pointer-events:none"></div>`;
-  const goliveL = `<div style="position:absolute;left:${goLivePct2}%;top:0;bottom:0;border-left:1.5px solid #10b98166;pointer-events:none"></div>`;
+  const goliveL = "";
 
   function URow(it){
     const u=urgency(it),d=dl(it.target);
@@ -1122,7 +1131,7 @@ function renderOwner(owner){
           <div style="flex:1;position:relative;height:32px">
             ${months.map(m=>`<div style="position:absolute;left:${m.left}%;top:0;bottom:0;display:flex;align-items:center;padding-left:5px;font-size:10px;font-weight:600;color:var(--text3);border-left:1px solid var(--border);pointer-events:none;user-select:none">${m.label} '${m.yr}</div>`).join("")}
             <div style="position:absolute;left:${todayPct}%;top:0;bottom:0;border-left:1.5px dashed #ef4444aa;z-index:5;pointer-events:none"><div style="position:absolute;bottom:3px;left:3px;font-size:9px;font-weight:700;color:#ef4444">Today</div></div>
-            <div style="position:absolute;left:${goLivePct2}%;top:0;bottom:0;border-left:2px solid #10b981aa;z-index:5;pointer-events:none"><div style="position:absolute;bottom:3px;left:3px;font-size:9px;font-weight:700;color:#065f46">Go-Live</div></div>
+
           </div>
         </div>
         ${byWS.map(group=>`
@@ -1602,12 +1611,8 @@ function render(){
 
   // Always allow sync tab; show connect prompt for all other tabs when disconnected
   if(!G.connected && tab!=="sync"){
-    mc.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:14px;color:var(--text2)">
-      <div style="font-size:32px">🔌</div>
-      <div style="font-size:15px;font-weight:600;color:var(--text)">Not connected to Azure DevOps</div>
-      <div style="font-size:13px">Enter your ADO details to load live project data.</div>
-      <button class="btn btn-primary" onclick="setTab('sync')">🔄 Connect now</button>
-    </div>`;
+    G.tab = "sync";
+    mc.innerHTML = renderSync();
     return;
   }
   if(tab==="identify") mc.innerHTML = renderIdentify();
