@@ -261,15 +261,12 @@ tr:hover td{background:var(--surface2)}
   <button class="nav-item" id="nv-all" onclick="setTab('all')"><span class="icon">📋</span>All Items</button>
   <button class="nav-item" id="nv-mytasks" onclick="setTab('mytasks')"><span class="icon">👤</span>My Tasks</button>
   <button class="nav-item" id="nv-weekly" onclick="setTab('weekly')"><span class="icon">📈</span>Weekly Analysis</button>
-  <button class="nav-item" id="nv-sync" onclick="setTab('sync')"><span class="icon">🔄</span>Sync</button>
+  <button class="nav-item" id="nav-sync-action" onclick="quickSync()" style="margin-top:4px;border:1px solid var(--border2);font-weight:600"><span class="icon" id="nav-sync-icon2">↻</span><span id="nav-sync-label2">Sync Now</span></button>
   <div class="nav-section" style="margin-top:8px">Team</div>
   <div id="nav-team"></div>
   <div class="nav-bottom">
     <div class="sync-info" id="sync-info">Not connected<br>BP Go-Live: Aug 2026</div>
-    <button class="nav-item" id="nav-quick-sync" style="margin-top:4px" onclick="quickSync()">
-      <span class="icon" id="nav-sync-icon">↻</span>
-      <span id="nav-sync-label">Connect ADO</span>
-    </button>
+    <button class="nav-item" onclick="doDisconnect()" style="margin-top:8px;color:#ef4444;border:1px solid #fecaca;border-radius:8px"><span class="icon">⏻</span>Logout</button>
   </div>
 </nav>
 
@@ -433,9 +430,9 @@ function setTab(tab, extra){ closeNav();
   if(tab.startsWith("owner-")){
     const el=document.getElementById("nv-owner-"+tab.replace("owner-",""));
     if(el) el.classList.add("active");
-    ["nv-overview","nv-all","nv-mytasks","nv-weekly","nv-sync"].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
+    ["nv-overview","nv-all","nv-mytasks","nv-weekly"].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
   } else {
-    ["nv-overview","nv-all","nv-mytasks","nv-weekly","nv-sync"].forEach(id=>{
+    ["nv-overview","nv-all","nv-mytasks","nv-weekly"].forEach(id=>{
       const e=document.getElementById(id);
       if(e) e.classList.toggle("active", id==="nv-"+tab);
     });
@@ -475,14 +472,15 @@ function buildNav(){
     ? (G.lastSync ? `Synced ${fmtDateFull(G.lastSync)}<br>BP Go-Live: Aug 2026` : `Connected · loading…<br>BP Go-Live: Aug 2026`)
     : `Not connected<br>BP Go-Live: Aug 2026`;
 
-  // Update quick-sync button
-  const qsBtn = document.getElementById("nav-quick-sync");
-  const qsIcon = document.getElementById("nav-sync-icon");
-  const qsLabel = document.getElementById("nav-sync-label");
-  if(qsBtn){
-    qsBtn.disabled = G.syncing;
-    if(qsIcon)  qsIcon.textContent  = G.syncing ? "⟳" : "↻";
-    if(qsLabel) qsLabel.textContent = G.syncing ? "Syncing…" : G.connected ? "Quick Sync" : "Connect ADO";
+  // Update Sync Now nav button
+  const syncAction = document.getElementById("nav-sync-action");
+  const syncIcon2  = document.getElementById("nav-sync-icon2");
+  const syncLabel2 = document.getElementById("nav-sync-label2");
+  if(syncAction){
+    syncAction.disabled = G.syncing;
+    syncAction.style.opacity = G.syncing ? "0.6" : "1";
+    if(syncIcon2)  syncIcon2.textContent  = G.syncing ? "⟳" : "↻";
+    if(syncLabel2) syncLabel2.textContent = G.syncing ? "Syncing…" : G.connected ? "Sync Now" : "Connect ADO";
   }
 }
 function quickSync(){ G.connected ? doSync() : setTab('sync'); }
@@ -1617,7 +1615,6 @@ function render(){
   else if(tab==="overview") mc.innerHTML = renderOverview();
   else if(tab==="weekly") mc.innerHTML = renderWeeklyAnalysis();
   else if(tab==="all") mc.innerHTML = renderAll();
-  else if(tab==="sync") mc.innerHTML = renderSync();
   else if(tab.startsWith("owner-")) mc.innerHTML = renderOwner(tab.replace("owner-",""));
 }
 
