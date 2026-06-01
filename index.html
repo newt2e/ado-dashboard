@@ -167,6 +167,7 @@ tr:hover td{background:var(--surface2)}
 
 @media(max-width:1100px){.metric-grid,.ws-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}}
 
+
 /* ── ITEM TOOLTIP ── */
 #iid-tooltip{
   position:fixed;z-index:9999;pointer-events:none;
@@ -183,10 +184,70 @@ tr:hover td{background:var(--surface2)}
 #iid-tooltip .tt-row{display:flex;gap:6px;align-items:center}
 #iid-tooltip .tt-label{color:#64748b;min-width:56px;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
 #iid-tooltip .tt-val{color:#e2e8f0}
+
+/* ── MOBILE (≤768px only — does not affect desktop) ── */
+.mob-bar{display:none}
+.nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99;backdrop-filter:blur(2px)}
+@media(max-width:768px){
+  /* Top bar */
+  .mob-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+    background:var(--nav);position:sticky;top:0;z-index:101;
+    border-bottom:1px solid rgba(255,255,255,.08)}
+  .mob-bar-title{font-size:13px;font-weight:600;color:#f1f5f9}
+  .mob-bar-btn{background:none;border:none;color:#94a3b8;font-size:20px;padding:4px 6px;line-height:1;cursor:pointer}
+  /* Nav drawer */
+  .nav{position:fixed;top:0;left:0;height:100vh;z-index:100;
+    transform:translateX(-100%);transition:transform .25s ease;width:240px}
+  .nav.open{transform:translateX(0)}
+  .nav-overlay.open{display:block}
+  /* Layout */
+  .app{flex-direction:column}
+  .main{padding:14px 12px}
+  /* Grids */
+  .metric-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px;margin-bottom:14px}
+  .mc-val{font-size:20px}
+  .ws-grid{grid-template-columns:1fr!important}
+  .two-col{grid-template-columns:1fr!important}
+  /* Typography */
+  .page-header h2{font-size:16px}
+  .page-header{margin-bottom:14px}
+  .card{padding:12px 14px}
+  /* Item rows: reflow to 2-line */
+  .item-row{grid-template-columns:1fr auto!important;grid-template-rows:auto auto!important;gap:2px 8px!important;padding:10px!important}
+  .item-row .iid{grid-row:1;grid-column:2;text-align:right}
+  .item-row .ititle{grid-row:1;grid-column:1;white-space:normal!important}
+  .item-row .iowner{grid-row:2;grid-column:1}
+  .item-row .idt{grid-row:2;grid-column:2;text-align:right}
+  /* Owner URow reflow */
+  .urow{grid-template-columns:1fr auto!important;grid-template-rows:auto auto!important;gap:2px 6px!important}
+  .urow .urow-id{grid-row:1;grid-column:2;text-align:right}
+  .urow .urow-title{grid-row:1;grid-column:1;white-space:normal!important}
+  .urow .urow-date{grid-row:2;grid-column:1}
+  .urow .urow-state{grid-row:2;grid-column:2}
+  /* Owner page header */
+  .owner-hdr{flex-wrap:wrap!important;gap:12px!important}
+  .owner-hdr-pct{text-align:left!important;flex-shrink:unset!important}
+  /* Gantt touch scroll */
+  .gantt-outer{-webkit-overflow-scrolling:touch}
+  /* Inputs — prevent iOS zoom on focus */
+  .inp{font-size:16px!important}
+  select.inp{font-size:16px!important}
+  /* Filter dropdown panels — slide up as sheet */
+  .gd-panel{position:fixed!important;top:auto!important;bottom:0!important;
+    left:0!important;right:0!important;width:100%!important;
+    max-height:60vh;border-radius:14px 14px 0 0;z-index:200}
+}
 </style>
 </head>
 <body>
 <div id="iid-tooltip"></div>
+<!-- MOBILE TOP BAR -->
+<div class="mob-bar">
+  <button class="mob-bar-btn" onclick="openNav()" aria-label="Menu">☰</button>
+  <span class="mob-bar-title">T2E Project Hub</span>
+  <button class="mob-bar-btn" onclick="quickSync()" aria-label="Sync">🔄</button>
+</div>
+<div class="nav-overlay" id="nav-overlay" onclick="closeNav()"></div>
 <div class="app">
 
 <!-- NAV -->
@@ -197,10 +258,9 @@ tr:hover td{background:var(--surface2)}
   </div>
   <div class="nav-section">Navigation</div>
   <button class="nav-item active" id="nv-overview" onclick="setTab('overview')"><span class="icon">📊</span>Overview</button>
-  <button class="nav-item" id="nv-weekly" onclick="setTab('weekly')"><span class="icon">📅</span>Weekly Call<span class="nav-badge" id="nb-weekly" style="display:none">0</span></button>
-  <button class="nav-item" id="nv-actions" onclick="setTab('actions')"><span class="icon">✅</span>Action Items<span class="nav-badge amb" id="nb-actions" style="display:none">0</span></button>
   <button class="nav-item" id="nv-all" onclick="setTab('all')"><span class="icon">📋</span>All Items</button>
   <button class="nav-item" id="nv-mytasks" onclick="setTab('mytasks')"><span class="icon">👤</span>My Tasks</button>
+  <button class="nav-item" id="nv-weekly" onclick="setTab('weekly')"><span class="icon">📈</span>Weekly Analysis</button>
   <button class="nav-item" id="nv-sync" onclick="setTab('sync')"><span class="icon">🔄</span>Sync</button>
   <div class="nav-section" style="margin-top:8px">Team</div>
   <div id="nav-team"></div>
@@ -256,6 +316,7 @@ let G = {
   // ADO connection config — persisted in storage
   adoCfg: { orgUrl:"https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite", project:"Gartner - SQ Transformation", pat:"", epicId:5276 },
   rememberPat: false,
+  waFilter: {owner:"All"},
   currentUser: null,
   tab: "overview",
   expandedWS: {},
@@ -341,18 +402,19 @@ function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; 
 function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
 
 async function loadStorage(){
-  const [ir,sr,or_,mr,cr] = await Promise.all([
+  const [ir,sr,or_,mr] = await Promise.all([
     storageGet("t2e_items"),storageGet("t2e_sync"),storageGet("t2e_overrides"),
-    storageGet("t2e_meetings"),storageGet("t2e_ado_cfg")
+    storageGet("t2e_meetings")
   ]);
   if(ir){ G.items=JSON.parse(ir); G.connected=true; }
   if(sr) G.lastSync=sr;
   if(or_) G.overrides=JSON.parse(or_);
   if(mr) G.meetings=JSON.parse(mr);
-  if(cr) G.adoCfg=JSON.parse(cr);
+  // All credentials and identity stored in localStorage (survives refresh)
+  const cr = lsGet('t2e_ado_cfg'); if(cr) G.adoCfg=JSON.parse(cr);
   const cu = lsGet('t2e_current_user'); if(cu) G.currentUser = cu;
-  const rr = lsGet("t2e_remember_pat");
-  if(rr === "1"){ G.rememberPat=true; const pr=lsGet("t2e_pat"); if(pr) G.adoCfg.pat=pr; }
+  const rr = lsGet('t2e_remember_pat');
+  if(rr === '1'){ G.rememberPat=true; const pr=lsGet('t2e_pat'); if(pr) G.adoCfg.pat=pr; }
 }
 
 async function saveOverrides(){
@@ -360,7 +422,7 @@ async function saveOverrides(){
 }
 
 // ── NAV ──
-function setTab(tab, extra){
+function setTab(tab, extra){ closeNav();
   G.tab = tab;
   document.querySelectorAll(".nav-item").forEach(el=>{
     const id = el.id;
@@ -371,9 +433,9 @@ function setTab(tab, extra){
   if(tab.startsWith("owner-")){
     const el=document.getElementById("nv-owner-"+tab.replace("owner-",""));
     if(el) el.classList.add("active");
-    ["nv-overview","nv-weekly","nv-actions","nv-all","nv-mytasks","nv-sync"].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
+    ["nv-overview","nv-all","nv-mytasks","nv-weekly","nv-sync"].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
   } else {
-    ["nv-overview","nv-weekly","nv-actions","nv-all","nv-mytasks","nv-sync"].forEach(id=>{
+    ["nv-overview","nv-all","nv-mytasks","nv-weekly","nv-sync"].forEach(id=>{
       const e=document.getElementById(id);
       if(e) e.classList.toggle("active", id==="nv-"+tab);
     });
@@ -383,12 +445,7 @@ function setTab(tab, extra){
 
 function buildNav(){
   const items = effectiveItems();
-  const overdueN = items.filter(i=>urgency(i)==="overdue").length;
-  const openAIs  = G.meetings.flatMap(m=>(m.actionItems||[]).filter(a=>!a.done)).length;
-  const nb = document.getElementById("nb-weekly");
-  const na = document.getElementById("nb-actions");
-  if(nb){ nb.textContent=overdueN; nb.style.display=overdueN>0?"":"none"; }
-  if(na){ na.textContent=openAIs;  na.style.display=openAIs>0?"":"none"; }
+
 
   const ownerList = [...new Set(items.map(i=>i.owner))].sort((a,b)=>{
     const oa=items.filter(i=>i.owner===a&&urgency(i)==="overdue").length;
@@ -656,8 +713,9 @@ function itemRowHTML(it, showWS=false){
   const u=urgency(it), d=dl(it.target);
   const dtLabel = it.state==="Closed" ? fmtDate(it.target) : u==="overdue" ? `${Math.abs(d)}d overdue` : u==="thisweek" ? `Due ${fmtDate(it.target)}` : fmtDate(it.target);
   const dtCls = u==="overdue" ? "idt red" : u==="thisweek" ? "idt amb" : "idt";
-  return `<div class="item-row ${u==="overdue"?"overdue":u==="thisweek"?"thisweek":""}">
-    <span class="iid" style="cursor:default" onmouseenter="showIidTip(event,this)" onmouseleave="hideIidTip()" data-id="${it.id}" data-type="${it.type||'Work Item'}" data-title="${it.title.replace(/"/g,'&quot;')}" data-owner="${it.owner}" data-state="${it.state}" data-start="${it.start||'—'}" data-target="${it.target||'—'}" data-ws="${it.ws}">#${it.id}</span>
+  const adoHref = adoUrl(it.id);
+  return `<div class="item-row ${u==="overdue"?"overdue":u==="thisweek"?"thisweek":""}" style="cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoHref}','_blank')">
+    <a class="iid" href="${adoHref}" target="_blank" rel="noopener" style="cursor:pointer;text-decoration:none;color:inherit" onmouseenter="showIidTip(event,this)" onmouseleave="hideIidTip()" data-id="${it.id}" data-type="${it.type||'Work Item'}" data-title="${it.title.replace(/"/g,'&quot;')}" data-owner="${it.owner}" data-state="${it.state}" data-start="${it.start||'—'}" data-target="${it.target||'—'}" data-ws="${it.ws}">#${it.id}</a>
     <span class="ititle" style="padding-left:${(it.level-2)*10}px" title="${it.title}">
       ${showWS?`<span class="badge badge-gray" style="margin-right:4px;font-size:9px">${it.ws}</span>`:""}${it.title}
     </span>
@@ -708,6 +766,8 @@ window.filterCall = (k,v)=>filterChange("call",k,v);
 window.filterAll = (k,v)=>filterChange("all",k,v);
 window.toggleWS = toggleWS;
 window.toggleStory = toggleStory;
+window.openNav  = function(){ document.getElementById('nav').classList.add('open'); document.getElementById('nav-overlay').classList.add('open'); };
+window.closeNav = function(){ var n=document.getElementById('nav'); var o=document.getElementById('nav-overlay'); if(n)n.classList.remove('open'); if(o)o.classList.remove('open'); };
 window.toggleWsCard = (ws)=>{ G.expandedWS["card_"+ws]=!G.expandedWS["card_"+ws]; render(); };
 
 // ── ITEM ID TOOLTIP ──
@@ -868,7 +928,6 @@ function renderOverview(){
     });
   <\/script>
   ${ganttHTML(ganttItems)}`;
-
   // Workstream Health
   html += `<div class="card" style="margin-top:16px;margin-bottom:16px">
     <div class="section-title" style="margin-top:0">Workstream Health</div>
@@ -922,217 +981,6 @@ function renderOverview(){
 }
 
 // ── WEEKLY CALL ──
-function renderWeekly(){
-  const items = effectiveItems();
-  const overdue  = items.filter(i=>urgency(i)==="overdue");
-  const thisweek = items.filter(i=>urgency(i)==="thisweek");
-  const active   = items.filter(i=>["In Progress","Active"].includes(i.state)&&urgency(i)!=="overdue");
-  const attn = [...overdue,...thisweek];
-
-  if(G.callPhase==="home"){
-    const filteredHome = attn.filter(i=>
-      (F.homeOwner==="All"||i.owner===F.homeOwner)&&
-      (F.homeWS==="All"||i.ws===F.homeWS)&&
-      (!F.homeQ||i.title.toLowerCase().includes(F.homeQ.toLowerCase()))
-    ).sort((a,b)=>dl(a.target)-dl(b.target));
-
-    return `<div class="page-header"><h2>Weekly Call</h2><p>Run your weekly project sync, update statuses, and capture action items</p></div>
-    <div class="two-col" style="margin-bottom:20px">
-      <div class="card">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Start New Weekly Call</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
-          Today: ${fmtDateFull(new Date().toISOString())} &nbsp;·&nbsp;
-          ${overdue.length>0?`<span style="color:var(--red-t)">${overdue.length} overdue</span>`:""}
-          ${overdue.length>0&&thisweek.length>0?" · ":""}
-          ${thisweek.length>0?`<span style="color:var(--amber-t)">${thisweek.length} due this week</span>`:""}
-        </div>
-        <div class="inp-row">
-          <input class="inp" placeholder="Attendees (e.g. Nithin, Anthony, Joanna…)" id="wc-attendees" value="${G.callAttendees}" oninput="G.callAttendees=this.value">
-        </div>
-        <button class="btn btn-primary" onclick="startMeeting()">▶ Start Meeting</button>
-      </div>
-      <div class="card">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Previous Calls</div>
-        ${G.meetings.length===0?`<div style="font-size:12px;color:var(--text3)">No calls recorded yet.</div>`:
-          `<div class="scroll-area" style="max-height:140px">
-            ${G.meetings.slice(0,5).map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-              <div>
-                <div style="font-size:12px;font-weight:500">${fmtDateFull(m.date)}</div>
-                <div style="font-size:11px;color:var(--text3)">${m.actionItems?.length||0} action items · ${m.attendees||"—"}</div>
-              </div>
-              <button class="btn btn-sm" onclick="viewMeeting('${m.id}')">View</button>
-            </div>`).join("")}
-          </div>`}
-      </div>
-    </div>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="section-title" style="margin-top:0;margin-bottom:0">
-          <span style="color:var(--red)">●</span> Items needing attention this week
-          <span class="badge badge-red">${filteredHome.length}${filteredHome.length!==attn.length?" of "+attn.length:""}</span>
-        </div>
-      </div>
-      ${attn.length===0?`<div class="empty-state">All clear this week</div>`:
-        filterBarHTML(attn,F.homeOwner,F.homeWS,F.homeQ,"filterHome",true)+
-        (filteredHome.length===0?`<div class="empty-state" style="padding:12px 0">No items match</div>`:`<div class="item-list">${filteredHome.map(it=>itemRowHTML(it,true)).join("")}</div>`)}
-    </div>`;
-  }
-
-  if(G.callPhase==="new"){
-    const callFilter = i=>(F.callOwner==="All"||i.owner===F.callOwner)&&(F.callWS==="All"||i.ws===F.callWS);
-    const fOD  = overdue.filter(callFilter);
-    const fTW  = thisweek.filter(callFilter);
-    const fAct = active.filter(callFilter).slice(0,12);
-
-    return `<div class="meeting-header">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-          <h3>Weekly Migration Sync — ${fmtDateFull(new Date().toISOString())}</h3>
-          <p>${G.callAttendees||"Attendees not set"} · ${overdue.length+thisweek.length} items to review</p>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-sm" onclick="G.callPhase='home';render()">✕ Cancel</button>
-          <button class="btn btn-success btn-sm" onclick="saveMeeting()">✓ Save & Close Meeting</button>
-        </div>
-      </div>
-    </div>
-    <div class="two-col">
-      <div>
-        ${filterBarHTML([...overdue,...thisweek,...active],F.callOwner,F.callWS,"","filterCall")}
-        ${overdue.length>0?`<div class="section-title">🔴 Overdue — update status now</div>
-          ${fOD.map(it=>`<div class="call-item">
-            <div>
-              <div style="font-size:12px;font-weight:500">${it.title}</div>
-              <div style="font-size:11px;color:var(--text2)">#${it.id} · ${it.owner} · ${Math.abs(dl(it.target))}d overdue</div>
-            </div>
-            <div style="display:flex;gap:4px">${["🔴","🟡","🟢"].map((e,i)=>`<span style="cursor:pointer;font-size:16px;opacity:${G.ragOverride[it.id]===e?1:0.3}" onclick="setRAG(${it.id},'${e}')">${e}</span>`).join("")}</div>
-            ${stateSelect(it.id, G.localOverrides[it.id]||G.overrides[it.id]||it.state, "callStateChange")}
-          </div>`).join("")}`:""}
-        ${thisweek.length>0?`<div class="section-title">🟡 Due this week</div>
-          ${fTW.map(it=>`<div class="call-item">
-            <div>
-              <div style="font-size:12px;font-weight:500">${it.title}</div>
-              <div style="font-size:11px;color:var(--text2)">#${it.id} · ${it.owner} · Due ${fmtDate(it.target)}</div>
-            </div>
-            <div style="display:flex;gap:4px">${["🔴","🟡","🟢"].map(e=>`<span style="cursor:pointer;font-size:16px;opacity:${G.ragOverride[it.id]===e?1:0.3}" onclick="setRAG(${it.id},'${e}')">${e}</span>`).join("")}</div>
-            ${stateSelect(it.id, G.localOverrides[it.id]||G.overrides[it.id]||it.state, "callStateChange")}
-          </div>`).join("")}`:""}
-        ${active.length>0?`<div class="section-title">🔵 In Progress — quick check</div>
-          ${fAct.map(it=>`<div class="call-item">
-            <div>
-              <div style="font-size:12px;font-weight:500">${it.title}</div>
-              <div style="font-size:11px;color:var(--text2)">#${it.id} · ${it.owner} · Target ${fmtDate(it.target)}</div>
-            </div>
-            <div style="display:flex;gap:4px">${["🔴","🟡","🟢"].map(e=>`<span style="cursor:pointer;font-size:16px;opacity:${G.ragOverride[it.id]===e?1:0.3}" onclick="setRAG(${it.id},'${e}')">${e}</span>`).join("")}</div>
-            ${stateSelect(it.id, G.localOverrides[it.id]||G.overrides[it.id]||it.state, "callStateChange")}
-          </div>`).join("")}`:""}
-      </div>
-      <div>
-        <div class="section-title">📝 Meeting Notes</div>
-        <textarea class="inp" rows="5" placeholder="Key discussion points, decisions, risks, blockers…" style="resize:vertical;margin-bottom:12px" oninput="G.callNotes=this.value">${G.callNotes}</textarea>
-        <div class="section-title">✅ Action Items</div>
-        <div style="margin-bottom:8px">
-          <input class="inp" placeholder="Action item…" id="ai-text" value="${G.newAI.text}" oninput="G.newAI.text=this.value" onkeydown="if(event.key==='Enter')addAI()" style="margin-bottom:6px">
-          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px">
-            <input class="inp" placeholder="Owner" id="ai-owner" value="${G.newAI.owner}" oninput="G.newAI.owner=this.value">
-            <input class="inp" type="date" id="ai-due" value="${G.newAI.due}" oninput="G.newAI.due=this.value">
-            <button class="btn" onclick="addAI()">+ Add</button>
-          </div>
-        </div>
-        ${(G.activeMeeting?.actionItems||[]).map(ai=>`<div class="action-item">
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:500">${ai.text}</div>
-            <div style="font-size:11px;color:var(--text3)">${ai.owner||""}${ai.due?" · Due "+fmtDate(ai.due):""}</div>
-          </div>
-          <button class="btn btn-icon btn-sm" onclick="removeAI('${ai.id}')">✕</button>
-        </div>`).join("")}
-      </div>
-    </div>`;
-  }
-
-  // view mode
-  const m = G.activeMeeting;
-  if(G.callPhase==="view"&&m) return `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div>
-        <h2 style="font-size:16px;font-weight:600">Meeting: ${fmtDateFull(m.date)}</h2>
-        <p style="font-size:12px;color:var(--text2)">${m.attendees||"—"}</p>
-      </div>
-      <button class="btn" onclick="G.callPhase='home';render()">← Back</button>
-    </div>
-    <div class="two-col">
-      <div class="card">
-        <div style="font-weight:600;margin-bottom:8px">Meeting Notes</div>
-        <p style="font-size:12px;color:var(--text2);white-space:pre-wrap">${m.notes||"No notes recorded."}</p>
-        ${Object.keys(m.statusUpdates||{}).length>0?`<div style="font-weight:600;margin-top:12px;margin-bottom:6px">Status Updates</div>
-          ${Object.entries(m.statusUpdates).map(([id,state])=>{const it=G.items.find(i=>i.id===parseInt(id));return it?`<div style="font-size:11px;color:var(--text2);margin-bottom:3px"><span style="font-family:var(--mono)">#${id}</span> ${it.title} → ${stateBadge(state)}</div>`:""}).join("")}`:""}
-      </div>
-      <div class="card">
-        <div style="font-weight:600;margin-bottom:8px">Action Items (${m.actionItems?.length||0})</div>
-        ${(m.actionItems||[]).length===0?`<div style="font-size:12px;color:var(--text3)">No action items.</div>`:
-          (m.actionItems||[]).map(ai=>`<div class="action-item"><div style="flex:1"><div style="font-size:12px;font-weight:500">${ai.text}</div><div style="font-size:11px;color:var(--text3)">${ai.owner||""}${ai.due?" · Due "+fmtDate(ai.due):""}</div></div></div>`).join("")}
-      </div>
-    </div>`;
-  return "";
-}
-
-function startMeeting(){
-  G.activeMeeting = {id:genId(),date:new Date().toISOString(),attendees:G.callAttendees,notes:"",actionItems:[],statusUpdates:{},ragStatus:{}};
-  G.callNotes=""; G.localOverrides={}; G.ragOverride={}; G.callPhase="new"; render();
-}
-async function saveMeeting(){
-  const m = {...G.activeMeeting,notes:G.callNotes,statusUpdates:G.localOverrides,ragStatus:G.ragOverride,attendees:G.callAttendees};
-  G.meetings = [m,...G.meetings];
-  G.overrides = {...G.overrides,...G.localOverrides};
-  await saveOverrides();
-  await storageSet("t2e_meetings",JSON.stringify(G.meetings));
-  G.callPhase="view"; G.activeMeeting=m; render();
-}
-function viewMeeting(id){ G.activeMeeting=G.meetings.find(m=>m.id===id); G.callPhase="view"; render(); }
-function setRAG(id,e){ G.ragOverride={...G.ragOverride,[id]:e}; render(); }
-function callStateChange(id,state){ G.localOverrides={...G.localOverrides,[id]:state}; render(); }
-function addAI(){
-  if(!G.newAI.text.trim()) return;
-  const ai={id:genId(),text:G.newAI.text,owner:G.newAI.owner,due:G.newAI.due,done:false,meetingId:G.activeMeeting?.id};
-  G.activeMeeting={...G.activeMeeting,actionItems:[...(G.activeMeeting?.actionItems||[]),ai]};
-  G.newAI={text:"",owner:"",due:""}; render();
-}
-function removeAI(aiId){ G.activeMeeting={...G.activeMeeting,actionItems:G.activeMeeting.actionItems.filter(a=>a.id!==aiId)}; render(); }
-window.callStateChange=callStateChange; window.setRAG=setRAG;
-
-// ── ACTION ITEMS ──
-function renderActions(){
-  const allAIs = G.meetings.flatMap(m=>(m.actionItems||[]).map(ai=>({...ai,meetingDate:m.date})));
-  const open = allAIs.filter(a=>!a.done);
-  const done = allAIs.filter(a=>a.done);
-  return `<div class="page-header"><h2>Action Items</h2><p>${open.length} open · ${done.length} completed</p></div>
-    ${allAIs.length===0?`<div class="empty-state">No action items yet. Start a weekly call to capture them.</div>`:""}
-    ${open.length>0?`<div class="section-title">Open</div>
-      ${open.sort((a,b)=>(a.due||"z")<(b.due||"z")?-1:1).map(ai=>`<div class="action-item">
-        <input type="checkbox" onchange="toggleAI('${ai.id}','${ai.meetingId}')" style="margin-top:2px">
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:500">${ai.text}</div>
-          <div style="font-size:11px;color:var(--text3)">
-            ${ai.owner?`<span class="chip" style="margin-right:6px">${ai.owner}</span>`:""}
-            ${ai.due?`<span class="chip">${fmtDate(ai.due)}</span>`:""}
-            <span style="margin-left:8px">from ${fmtDateFull(ai.meetingDate)}</span>
-          </div>
-        </div>
-      </div>`).join("")}`:""}
-    ${done.length>0?`<div class="section-title">Completed</div>
-      ${done.map(ai=>`<div class="action-item done">
-        <input type="checkbox" checked onchange="toggleAI('${ai.id}','${ai.meetingId}')" style="margin-top:2px">
-        <div style="flex:1"><div class="ai-title" style="font-size:13px">${ai.text}</div><div style="font-size:11px;color:var(--text3)">${ai.owner||""}</div></div>
-      </div>`).join("")}`:""}`;
-}
-async function toggleAI(aiId,meetId){
-  G.meetings = G.meetings.map(m=>m.id===meetId?{...m,actionItems:m.actionItems.map(a=>a.id===aiId?{...a,done:!a.done}:a)}:m);
-  await storageSet("t2e_meetings",JSON.stringify(G.meetings));
-  render();
-}
-window.toggleAI=toggleAI;
-
-// ── ALL ITEMS ──
 function renderAll(){
   const items = effectiveItems();
   let filtered = items.filter(i=>{
@@ -1178,8 +1026,8 @@ function renderAll(){
         ${filtered.map(it=>{
           const u=urgency(it),d=dl(it.target);
           const dtLabel=it.state==="Closed"?fmtDate(it.target):u==="overdue"?`${Math.abs(d)}d overdue`:fmtDate(it.target);
-          return `<tr style="background:${u==="overdue"?"#fff5f5":""}">
-            <td style="font-family:var(--mono);font-size:10px;color:var(--text3)">#${it.id}</td>
+          return `<tr style="background:${u==="overdue"?"#fff5f5":""};cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoUrl(it.id)}','_blank')">
+            <td style="font-family:var(--mono);font-size:10px"><a href="${adoUrl(it.id)}" target="_blank" rel="noopener" style="color:var(--text3);text-decoration:none;cursor:pointer" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">#${it.id}</a></td>
             <td><span class="badge badge-gray" style="font-size:9px">${it.ws}</span></td>
             <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:${(it.level-2)*10+10}px">${it.title}</td>
             <td style="font-size:12px">${it.owner}</td>
@@ -1229,13 +1077,13 @@ function renderOwner(owner){
     const u=urgency(it),d=dl(it.target);
     const dtLabel=it.state==="Closed"?fmtDate(it.target):u==="overdue"?`${Math.abs(d)}d overdue`:u==="thisweek"?`Due ${fmtDate(it.target)}`:fmtDate(it.target);
     const dtCls=u==="overdue"?"idt red":u==="thisweek"?"idt amb":"idt";
-    return `<div style="display:grid;grid-template-columns:42px 1fr 90px 120px;gap:8px;align-items:center;padding:8px 10px;border-radius:6px;transition:background .12s" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
-      <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">#${it.id}</span>
-      <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:${(it.level-2)*8}px">
+    return `<div class="urow" style="display:grid;grid-template-columns:42px 1fr 90px 120px;gap:8px;align-items:center;padding:8px 10px;border-radius:6px;transition:background .12s;cursor:pointer" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoUrl(it.id)}','_blank')">
+      <a class="urow-id" href="${adoUrl(it.id)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--text3);text-decoration:none;cursor:pointer" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">#${it.id}</a>
+      <span class="urow-title" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:${(it.level-2)*8}px">
         <span class="badge badge-gray" style="font-size:9px;margin-right:4px">${it.ws}</span>${it.title}
       </span>
-      <span class="${dtCls}" style="font-family:var(--mono);font-size:11px">${dtLabel}</span>
-      ${stateSelect(it.id,it.state,"ownerStateChange")}
+      <span class="urow-date ${dtCls}" style="font-family:var(--mono);font-size:11px">${dtLabel}</span>
+      <span class="urow-state">${stateSelect(it.id,it.state,"ownerStateChange")}</span>
     </div>`;
   }
 
@@ -1285,7 +1133,7 @@ function renderOwner(owner){
     </div>
   </div>`;
 
-  return `<div style="display:flex;align-items:center;gap:18px;margin-bottom:20px;padding:18px 20px;background:${color}0d;border:1.5px solid ${color}30;border-radius:14px">
+  return `<div class="owner-hdr" style="display:flex;align-items:center;gap:18px;margin-bottom:20px;padding:18px 20px;background:${color}0d;border:1.5px solid ${color}30;border-radius:14px">
     <div style="width:56px;height:56px;border-radius:14px;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800;flex-shrink:0">${ownerInit(owner)}</div>
     <div style="flex:1">
       <h2 style="font-size:20px;font-weight:700;margin-bottom:2px">${owner}</h2>
@@ -1298,7 +1146,7 @@ function renderOwner(owner){
         <span class="badge badge-gray">${mine.length} total</span>
       </div>
     </div>
-    <div style="text-align:right;flex-shrink:0">
+    <div class="owner-hdr-pct" style="text-align:right;flex-shrink:0">
       <div style="font-size:36px;font-weight:800;color:${color};line-height:1">${pct}<span style="font-size:18px">%</span></div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px">complete</div>
       <div class="prog-bar" style="width:90px;margin-top:6px;margin-left:auto"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
@@ -1337,8 +1185,6 @@ async function ownerStateChange(id,state){
 }
 function toggleOwnerDone(owner){ G.ownerPageShowDone[owner]=!G.ownerPageShowDone[owner]; render(); }
 window.ownerStateChange=ownerStateChange; window.toggleOwnerDone=toggleOwnerDone;
-window.viewMeeting=viewMeeting; window.startMeeting=startMeeting; window.saveMeeting=saveMeeting;
-window.addAI=addAI; window.removeAI=removeAI;
 
 // ── SYNC (ADO) ──
 function renderSync(){
@@ -1398,17 +1244,23 @@ function renderSync(){
 }
 
 // ── ADO FETCH HELPERS ──
+function adoUrl(id){ const c=G.adoCfg; return c.orgUrl&&c.project?`${c.orgUrl.replace(/\/+$/,'')}/${c.project}/_workitems/edit/${id}`:''; }
+
 function adoAuth(pat){ try{ return 'Basic ' + btoa(unescape(encodeURIComponent(':' + pat))); }catch(e){ return 'Basic ' + btoa(':' + pat); } }
 
 async function adoFetch(url, pat){
-  const r = await fetch(url, {headers:{Authorization: adoAuth(pat)}});
-  if(!r.ok) throw new Error(r.status + ': ' + (await r.text()).slice(0,150));
-  return r.json();
+  const r = await fetch(url, {headers:{Authorization: adoAuth(pat), 'Accept':'application/json'}});
+  const text = await r.text();
+  if(!r.ok) throw new Error(r.status + ': ' + text.slice(0,200));
+  if(text.trimStart().startsWith('<')) throw new Error('ADO returned HTML — check your org URL and PAT.');
+  return JSON.parse(text);
 }
 async function adoPost(url, pat, body){
-  const r = await fetch(url, {method:'POST', headers:{Authorization: adoAuth(pat),'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  if(!r.ok) throw new Error(r.status + ': ' + (await r.text()).slice(0,150));
-  return r.json();
+  const r = await fetch(url, {method:'POST', headers:{Authorization: adoAuth(pat),'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify(body)});
+  const text = await r.text();
+  if(!r.ok) throw new Error(r.status + ': ' + text.slice(0,200));
+  if(text.trimStart().startsWith('<')) throw new Error('ADO returned HTML — check your org URL and PAT.');
+  return JSON.parse(text);
 }
 
 // ── STATE NORMALISATION ──
@@ -1514,11 +1366,11 @@ async function doSync(){
     const base = orgUrl.replace(/\/+$/,'');
 
     // 1. Test connection
-    await adoFetch(`${base}/${encodeURIComponent(project)}/_apis/wit/workitemtypes?api-version=7.0`, pat);
+    await adoFetch(`${base}/${project}/_apis/wit/workitemtypes?api-version=7.0`, pat);
 
     // 2. Get all descendant IDs via recursive WIQL
     const wiql = `SELECT [System.Id] FROM WorkItemLinks WHERE ([Source].[System.Id]=${epicId}) AND ([System.Links.LinkType]='System.LinkTypes.Hierarchy-Forward') MODE (Recursive)`;
-    const linkRes = await adoPost(`${base}/${encodeURIComponent(project)}/_apis/wit/wiql?api-version=7.0&$top=1000`, pat, {query:wiql});
+    const linkRes = await adoPost(`${base}/${project}/_apis/wit/wiql?api-version=7.0&$top=1000`, pat, {query:wiql});
     const ids = new Set([epicId]);
     (linkRes.workItemRelations||[]).forEach(r=>{ if(r.target?.id) ids.add(r.target.id); });
 
@@ -1542,7 +1394,7 @@ async function doSync(){
 
     await storageSet('t2e_items', JSON.stringify(mapped));
     await storageSet('t2e_sync', G.lastSync);
-    await storageSet('t2e_ado_cfg', JSON.stringify(G.adoCfg));
+    lsSet('t2e_ado_cfg', JSON.stringify(G.adoCfg));
 
     // Switch to identify (first time) or overview after connect
     if(G.tab==='sync') G.tab = G.currentUser ? 'overview' : 'identify';
@@ -1557,14 +1409,15 @@ async function doDisconnect(){
   G.adoCfg={orgUrl:'https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite',project:'Gartner - SQ Transformation',pat:'',epicId:5276};
   G.rememberPat=false;
   lsDel('t2e_remember_pat'); lsDel('t2e_pat');
-  await storageDel('t2e_items'); await storageDel('t2e_sync'); await storageDel('t2e_ado_cfg');
+  await storageDel('t2e_items'); await storageDel('t2e_sync'); lsDel('t2e_ado_cfg');
   render();
 }
 
 async function confirmReset(){
   if(!confirm('Reset all data? This cannot be undone.')) return;
   G.items=[]; G.lastSync=null; G.overrides={}; G.meetings=[]; G.connected=false;
-  for(const k of['t2e_items','t2e_sync','t2e_overrides','t2e_meetings','t2e_ado_cfg']) await storageDel(k);
+  for(const k of['t2e_items','t2e_sync','t2e_overrides','t2e_meetings']) await storageDel(k);
+  lsDel('t2e_ado_cfg');
   render();
 }
 window.doConnect=doConnect; window.doSync=doSync; window.doDisconnect=doDisconnect; window.confirmReset=confirmReset;
@@ -1572,21 +1425,22 @@ window.doConnect=doConnect; window.doSync=doSync; window.doDisconnect=doDisconne
 // ── IDENTIFY ──
 function renderIdentify(){
   const owners = [...new Set(G.items.map(i=>i.owner))].sort();
+  const changingUser = !!G.currentUser;
   return `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:0">
     <div class="card" style="max-width:420px;width:100%">
-      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">👋 Welcome</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:18px">Select your name to personalise your view. This is saved to your device.</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">${changingUser ? "👤 Change Name" : "👋 Welcome"}</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${changingUser ? `Currently set to <strong>${G.currentUser}</strong>. Pick a different name below.` : "Select your name to personalise your view. This is saved to your device."}</div>
       <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">Your Name</label>
-      <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:16px" onchange="(function(v){if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='mytasks';render();}})(this.value)">
+      <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:16px;font-size:14px" onchange="(function(v){if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='mytasks';render();}})(this.value)">
         <option value="">— Select your name —</option>
-        ${owners.map(o=>`<option value="${o}">${o}</option>`).join('')}
+        ${owners.map(o=>`<option value="${o}"${G.currentUser===o?' selected':''} >${o}</option>`).join('')}
       </select>
       <button class="btn" style="font-size:11px;color:var(--text3)" onclick="G.tab='overview';render()">Skip for now</button>
     </div>
   </div>`;
 }
 window.setCurrentUser = function(name){ G.currentUser=name; lsSet('t2e_current_user',name); render(); };
-window.clearCurrentUser = function(){ G.currentUser=null; lsDel('t2e_current_user'); render(); };
+window.clearCurrentUser = function(){ G.currentUser=null; lsDel('t2e_current_user'); G.tab='identify'; render(); };
 
 // ── MY TASKS ──
 function renderMyTasks(){
@@ -1603,10 +1457,10 @@ function renderMyTasks(){
   const closed = mine.filter(i=>i.state==="Closed").sort((a,b)=>dl(b.target)-dl(a.target));
   const overdue  = open.filter(i=>urgency(i)==="overdue");
   const thisweek = open.filter(i=>urgency(i)==="thisweek");
-  const rest     = open.filter(i=>urgency(i)==="normal");
+  const rest     = open.filter(i=>urgency(i)!=="overdue"&&urgency(i)!=="thisweek");
   return `<div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
     <div><h2>My Tasks</h2><p>Items assigned to <strong>${G.currentUser}</strong></p></div>
-    <button onclick="clearCurrentUser()" style="padding:5px 10px;font-size:11px;color:var(--text3);background:none;border:1px solid var(--border2);border-radius:6px;cursor:pointer;margin-top:4px">Switch user</button>
+    <button onclick="clearCurrentUser()" style="padding:6px 14px;font-size:12px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1.5px solid var(--blue);border-radius:7px;cursor:pointer;margin-top:4px;display:flex;align-items:center;gap:6px">👤 Change Name</button>
   </div>
   <div class="metric-grid" style="margin-bottom:16px">
     <div class="metric-card"><div class="metric-val">${mine.length}</div><div class="metric-label">Total</div></div>
@@ -1634,11 +1488,104 @@ function renderMyTasks(){
   ${mine.length===0?`<div class="card"><div class="empty-state">No items assigned to ${G.currentUser}</div></div>`:""}`;
 }
 
+// ── WEEKLY ANALYSIS ──
+function renderWeeklyAnalysis(){
+  const items = effectiveItems();
+  const now   = new Date();
+  const dayMs = 86400000;
+  const waf   = G.waFilter;
+
+  // All owners for the filter dropdown
+  const allOwners = [...new Set(items.map(i=>i.owner))].sort();
+
+  // Last week: target within past 7 days AND closed
+  const lastWeekStart = new Date(now - 7*dayMs);
+  const completedLastWeek = items.filter(i=>{
+    if(i.state!=="Closed") return false;
+    const t = i.target ? new Date(i.target) : null;
+    if(!t || t < lastWeekStart || t > now) return false;
+    return waf.owner==="All" || i.owner===waf.owner;
+  }).sort((a,b)=>new Date(b.target)-new Date(a.target));
+
+  // Upcoming: open items with target in next 7 days
+  const nextWeekEnd = new Date(now.getTime() + 7*dayMs);
+  const upcomingNextWeek = items.filter(i=>{
+    if(i.state==="Closed") return false;
+    const t = i.target ? new Date(i.target) : null;
+    if(!t || t < now || t > nextWeekEnd) return false;
+    return waf.owner==="All" || i.owner===waf.owner;
+  }).sort((a,b)=>new Date(a.target)-new Date(b.target));
+
+  // Group by workstream
+  function groupByWS(arr){
+    const map = {};
+    arr.forEach(i=>{ if(!map[i.ws]) map[i.ws]=[]; map[i.ws].push(i); });
+    return Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
+  }
+
+  const completedByWS = groupByWS(completedLastWeek);
+  const upcomingByWS  = groupByWS(upcomingNextWeek);
+
+  const weekLabel = `${lastWeekStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  const nextLabel = `${now.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${nextWeekEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  function wsSection(groups, emptyMsg){
+    if(groups.length===0) return `<div class="empty-state">${emptyMsg}</div>`;
+    return groups.map(([ws, its])=>`
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="width:8px;height:8px;border-radius:2px;background:${WS_COLORS[ws]||'#94a3b8'};flex-shrink:0"></span>
+          <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${ws} — ${WS_META[ws]?.name||ws}</span>
+          <span class="badge badge-gray">${its.length}</span>
+        </div>
+        <div class="item-list">${its.map(it=>itemRowHTML(it,false)).join("")}</div>
+      </div>`).join("");
+  }
+
+  const isFiltered = waf.owner!=="All";
+
+  return `<div class="page-header"><h2>Weekly Analysis</h2><p>A snapshot of last week's progress and what's coming up</p></div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <label style="font-size:11px;font-weight:600;color:var(--text2)">Assigned To</label>
+    <select style="padding:5px 10px;border:1px solid ${isFiltered?"var(--blue)":"var(--border2)"};border-radius:6px;font-size:12px;background:${isFiltered?"var(--blue-bg)":"var(--surface)"};color:${isFiltered?"var(--blue-t)":"var(--text)"};cursor:pointer;outline:none;font-weight:${isFiltered?600:400}"
+      onchange="G.waFilter.owner=this.value;render()">
+      <option value="All"${waf.owner==="All"?" selected":""}>All</option>
+      ${allOwners.map(o=>`<option value="${o}"${waf.owner===o?" selected":""}>${o}</option>`).join("")}
+    </select>
+    ${isFiltered?`<button onclick="G.waFilter={owner:'All'};render()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">clear</button>`:""}
+  </div>
+
+  <div class="two-col" style="gap:16px;align-items:start">
+    <div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="section-title" style="margin:0">✅ Completed Last Week</div>
+          <span class="badge badge-green">${completedLastWeek.length} items</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${weekLabel}</div>
+        ${wsSection(completedByWS,"Nothing was marked complete in the last 7 days")}
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="section-title" style="margin:0">📅 Due Next 7 Days</div>
+          <span class="badge badge-amber">${upcomingNextWeek.length} items</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${nextLabel}</div>
+        ${wsSection(upcomingByWS,"Nothing is due in the next 7 days")}
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── MAIN RENDER ──
 function render(){
   buildNav();
   const mc = document.getElementById("main-content");
   const tab = G.tab;
+
   // Always allow sync tab; show connect prompt for all other tabs when disconnected
   if(!G.connected && tab!=="sync"){
     mc.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:14px;color:var(--text2)">
@@ -1652,8 +1599,7 @@ function render(){
   if(tab==="identify") mc.innerHTML = renderIdentify();
   else if(tab==="mytasks") mc.innerHTML = renderMyTasks();
   else if(tab==="overview") mc.innerHTML = renderOverview();
-  else if(tab==="weekly") mc.innerHTML = renderWeekly();
-  else if(tab==="actions") mc.innerHTML = renderActions();
+  else if(tab==="weekly") mc.innerHTML = renderWeeklyAnalysis();
   else if(tab==="all") mc.innerHTML = renderAll();
   else if(tab==="sync") mc.innerHTML = renderSync();
   else if(tab.startsWith("owner-")) mc.innerHTML = renderOwner(tab.replace("owner-",""));
@@ -1662,17 +1608,18 @@ function render(){
 // ── BOOT ──
 (async function(){
   await loadStorage();
-  // If we restored items from storage, rebuild WS meta from them
   if(G.items.length) rebuildWsMeta(G.items);
-  // Auto-reconnect if rememberPat is set and we have credentials
   const {orgUrl, project, pat} = G.adoCfg;
-  if(!G.connected && G.rememberPat && orgUrl && project && pat){
+  const hasCredentials = orgUrl && project && pat;
+  // Auto-reconnect silently if credentials saved in localStorage
+  if(hasCredentials){
     G.tab = G.currentUser ? 'overview' : 'identify';
     render(); // show loading state immediately
     await doSync();
     return;
   }
-  if(!G.connected) G.tab='sync';
+  // No credentials — always land on connect page
+  G.tab = 'sync';
   render();
 })();
 </script>
