@@ -759,6 +759,12 @@ window.ganttFilterClear = function(){
   G.ganttFilter = {state:[], owner:[], type:[]};
   render();
 };
+// Close filter panels when clicking outside (registered once)
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.gd-panel') && !e.target.closest('[id$="-btn"]')){
+    document.querySelectorAll('.gd-panel').forEach(function(x){x.style.display='none';});
+  }
+});
 window.filterOD = (k,v)=>filterChange("od",k,v);
 window.filterTW = (k,v)=>filterChange("tw",k,v);
 window.filterHome = (k,v)=>filterChange("home",k,v);
@@ -871,7 +877,7 @@ function renderOverview(){
       const checked = sel.includes(o);
       const safeO = o.replace(/'/g,"\\'");
       return `<label style="display:flex;align-items:center;gap:7px;padding:5px 10px;cursor:pointer;border-radius:4px;font-size:12px;white-space:nowrap;transition:background .1s" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
-        <input type="checkbox" ${checked?"checked":""} style="accent-color:var(--blue);width:13px;height:13px;cursor:pointer"
+        <input type="checkbox" ${checked?"checked":""} data-val="${o}" style="accent-color:var(--blue);width:13px;height:13px;cursor:pointer"
           onchange="(function(cb){
             const arr=G.ganttFilter['${key}'];
             if(cb.checked){ if(!arr.includes('${safeO}')) arr.push('${safeO}'); }
@@ -882,6 +888,23 @@ function renderOverview(){
         ${o}
       </label>`;
     }).join("");
+    const allChecked = sel.length === opts.length;
+    const selectAllRow = `<label style="display:flex;align-items:center;gap:7px;padding:5px 10px;
+        cursor:pointer;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;
+        border-bottom:1px solid var(--border);margin-bottom:2px;
+        transition:background .1s" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
+      <input type="checkbox" ${allChecked?'checked':''} style="accent-color:var(--blue);width:13px;height:13px;cursor:pointer"
+        onchange="(function(cb){
+          var panel=document.getElementById('gd-${key}-panel');
+          var boxes=panel?panel.querySelectorAll('input[type=checkbox]'):[];
+          var vals=[];
+          boxes.forEach(function(b,i){ if(i>0){ b.checked=cb.checked; if(cb.checked) vals.push(b.dataset.val); } });
+          G.ganttFilter['${key}']=vals;
+          render();
+          var p=document.getElementById('gd-${key}-panel'); if(p) p.style.display='block';
+        })(this)">
+      Select all
+    </label>`;
     const dropId = 'gd-' + key;
     return `<div style="position:relative;display:inline-block">
       <button id="${dropId}-btn"
@@ -902,7 +925,7 @@ function renderOverview(){
         style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;
           background:var(--surface);border:1px solid var(--border2);border-radius:8px;
           box-shadow:0 4px 16px rgba(0,0,0,.12);padding:4px 0;min-width:160px;max-height:240px;overflow-y:auto">
-        ${checkboxes}
+        ${selectAllRow}${checkboxes}
       </div>
     </div>`;
   }
@@ -920,13 +943,6 @@ function renderOverview(){
     ${hasFilter?`<button onclick="ganttFilterClear()" style="padding:5px 10px;font-size:11px;color:var(--text3);background:none;border:1px solid var(--border2);border-radius:6px;cursor:pointer;white-space:nowrap">Clear all</button>
     <span style="font-size:11px;color:var(--text3)">${ganttItems.length} of ${items.length} shown</span>`:""}
   </div>
-  <script>
-    document.addEventListener('click', function(e){
-      if(!e.target.closest('.gd-panel') && !e.target.closest('[id$="-btn"]')){
-        document.querySelectorAll('.gd-panel').forEach(function(x){x.style.display='none';});
-      }
-    });
-  <\/script>
   ${ganttHTML(ganttItems)}`;
   // Workstream Health
   html += `<div class="card" style="margin-top:16px;margin-bottom:16px">
@@ -1611,10 +1627,17 @@ function render(){
   if(G.items.length) rebuildWsMeta(G.items);
   const {orgUrl, project, pat} = G.adoCfg;
   const hasCredentials = orgUrl && project && pat;
-  // Auto-reconnect silently if credentials saved in localStorage
   if(hasCredentials){
-    G.tab = G.currentUser ? 'overview' : 'identify';
-    render(); // show loading state immediately
+    // Check if this is the first login of the day
+    const today = new Date().toDateString();
+    const lastVisit = lsGet('t2e_last_visit');
+    const firstVisitToday = lastVisit !== today;
+    lsSet('t2e_last_visit', today);
+    // First time ever: go to identify. First visit today: my tasks. Otherwise: overview.
+    if(!G.currentUser) G.tab = 'identify';
+    else if(firstVisitToday) G.tab = 'mytasks';
+    else G.tab = 'overview';
+    render();
     await doSync();
     return;
   }
