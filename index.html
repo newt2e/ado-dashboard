@@ -783,13 +783,16 @@ function filterChange(ns, key, val){
     if(ns==="od") F.od={owner:"All",ws:"All",q:""};
     else if(ns==="ip") F.ip={owner:"All",ws:"All",q:""};
     else if(ns==="tw") F.tw={owner:"All",ws:"All",q:""};
+    else if(ns==="cl") F.cl={owner:"All",ws:"All",q:""};
     else if(ns==="home"){ F.homeOwner="All"; F.homeWS="All"; F.homeQ=""; }
     else if(ns==="call"){ F.callOwner="All"; F.callWS="All"; }
     else if(ns==="all"){ F.allQ=""; F.allWS="All"; F.allState="All"; F.allOwner="All"; }
   } else if(ns==="home"){ if(key==="owner")F.homeOwner=val; else if(key==="ws")F.homeWS=val; else if(key==="q")F.homeQ=val; }
   else if(ns==="call"){ if(key==="owner")F.callOwner=val; else if(key==="ws")F.callWS=val; }
   else if(ns==="od"){ F.od[key]=val; }
+  else if(ns==="ip"){ F.ip[key]=val; }
   else if(ns==="tw"){ F.tw[key]=val; }
+  else if(ns==="cl"){ F.cl[key]=val; }
   else if(ns==="all"){ if(key==="q")F.allQ=val; else if(key==="ws")F.allWS=val; else if(key==="state")F.allState=val; else if(key==="owner")F.allOwner=val; }
   render();
 }
@@ -1150,6 +1153,10 @@ function renderOverview(){
     ${filterBarHTML(inprog,F.ip.owner,F.ip.ws,F.ip.q,"filterIP",true)}
     ${filteredIP.length===0?`<div class="empty-state" style="padding:12px 0">No items match the filter</div>`:`<div class="item-list">${filteredIP.map(it=>itemRowHTML(it,true)).join("")}</div>`}
   </div>`;
+
+
+
+
 
   // Due this week
   html += `<div id="ov-thisweek" class="card">
@@ -1636,10 +1643,15 @@ function renderIdentify(){
       <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">${changingUser ? "👤 Change Name" : "👋 Welcome"}</div>
       <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${changingUser ? `Currently set to <strong>${G.currentUser}</strong>. Pick a different name below.` : "Select your name to personalise your view. This is saved to your device."}</div>
       <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">Your Name</label>
-      <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:16px;font-size:14px" onchange="(function(v){if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='mytasks';render();}})(this.value)">
+      <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:12px;font-size:14px" onchange="(function(v){if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='mytasks';render();}})(this.value)">
         <option value="">— Select your name —</option>
         ${owners.map(o=>`<option value="${o}"${G.currentUser===o?' selected':''} >${o}</option>`).join('')}
       </select>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-align:center">— or enter your name manually —</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input class="inp" id="identify-custom" placeholder="Type your name..." style="font-size:14px;flex:1" onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='overview';render();}}">
+        <button class="btn btn-primary" onclick="var v=document.getElementById('identify-custom').value.trim();if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='overview';render();}">Go</button>
+      </div>
       <button class="btn" style="font-size:11px;color:var(--text3)" onclick="G.tab='overview';render()">Skip for now</button>
     </div>
   </div>`;
