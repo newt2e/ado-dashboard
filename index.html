@@ -752,7 +752,7 @@ function filterBarHTML(pool, fOwner, fWS, fQ, onChange, showSearch=false){
 
 function itemRowHTML(it, showWS=false){
   const u=urgency(it), d=dl(it.target);
-  const dtLabel = it.state==="Closed" ? fmtDate(it.target) : u==="overdue" ? `${Math.abs(d)}d overdue` : u==="thisweek" ? `Due ${fmtDate(it.target)}` : fmtDate(it.target);
+  const dtLabel = it._dateOverride ? it._dateOverride : it.state==="Closed" ? fmtDate(it.target) : u==="overdue" ? `${Math.abs(d)}d overdue` : u==="thisweek" ? `Due ${fmtDate(it.target)}` : fmtDate(it.target);
   const dtCls = u==="overdue" ? "idt red" : u==="thisweek" ? "idt amb" : "idt";
   const adoHref = adoUrl(it.id);
   const safeTitle = it.title.replace(/'/g,"\\'");
@@ -1727,7 +1727,12 @@ function renderWeeklyAnalysis(){
   const upcomingNextWeek = items.filter(i=>{
     if(i.state==="Closed") return false;
     const t = i.target ? new Date(i.target) : null;
-    if(!t || t < upcomingStart || t > nextWeekEnd) return false;
+    const s = i.start  ? new Date(i.start)  : null;
+    // Include if target falls in range, OR start falls in range, OR item spans the range
+    const targetIn = t && t >= upcomingStart && t <= nextWeekEnd;
+    const startIn  = s && s >= upcomingStart && s <= nextWeekEnd;
+    const spans    = s && t && s < upcomingStart && t > nextWeekEnd;
+    if(!targetIn && !startIn && !spans) return false;
     return waf.owner==="All" || i.owner===waf.owner;
   }).sort((a,b)=>new Date(a.target)-new Date(b.target));
 
@@ -1772,7 +1777,12 @@ function renderWeeklyAnalysis(){
           <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${ws} — ${WS_META[ws]?.name||ws}</span>
           <span class="badge badge-gray">${its.length}</span>
         </div>
-        <div class="item-list">${its.map(it=>itemRowHTML(it,false)).join("")}</div>
+        <div class="item-list">${its.map(it=>{
+          const hasStart = it.start && it.start !== it.target;
+          if(!hasStart) return itemRowHTML(it,false);
+          const clone = Object.assign({},it,{_dateOverride: fmtDate(it.start)+" → "+fmtDate(it.target)});
+          return itemRowHTML(clone,false);
+        }).join("")}</div>
       </div>`).join("");
   }
 
