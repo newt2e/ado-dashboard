@@ -248,6 +248,21 @@ tr:hover td{background:var(--surface2)}
 }
 
 /* ── CHAT ── */
+#chat-fab{position:fixed;bottom:24px;right:24px;z-index:500;width:50px;height:50px;border-radius:50%;background:#3b82f6;border:none;cursor:pointer;color:#fff;font-size:20px;box-shadow:0 4px 16px rgba(59,130,246,.4);transition:transform .15s;display:none}
+#chat-fab:hover{transform:scale(1.08)}
+#chat-panel{position:fixed;bottom:86px;right:24px;z-index:500;width:340px;max-height:480px;background:var(--surface);border:1px solid var(--border2);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.15);display:none;flex-direction:column;overflow:hidden}
+#chat-panel.open{display:flex}
+#chat-ph{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+#chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:100px}
+.cm{max-width:85%;padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.5;word-break:break-word}
+.cm.u{align-self:flex-end;background:#3b82f6;color:#fff;border-bottom-right-radius:3px}
+.cm.b{align-self:flex-start;background:var(--surface2);color:var(--text);border-bottom-left-radius:3px}
+#chat-ir{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0}
+#chat-in{flex:1;border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit}
+#chat-in:focus{border-color:#3b82f6}
+#chat-snd{padding:7px 12px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px}
+@media(max-width:768px){#chat-panel{width:calc(100vw - 20px);right:10px;bottom:76px}}
+
 </style>
 </head>
 <body>
@@ -286,6 +301,7 @@ tr:hover td{background:var(--surface2)}
   <button class="nav-item" id="nv-all" onclick="setTab('all')"><span class="icon">📋</span>All Items</button>
   <button class="nav-item" id="nv-mytasks" onclick="setTab('mytasks')"><span class="icon">👤</span>My Tasks</button>
   <button class="nav-item" id="nv-weekly" onclick="setTab('weekly')"><span class="icon">📈</span>Weekly Analysis</button>
+  <button class="nav-item" id="nv-exec" onclick="setTab('exec')" style="display:none"><span class="icon">📄</span>Executive Summary</button>
   <button class="nav-item" id="nav-sync-action" onclick="quickSync()" style="margin-top:4px;border:1px solid var(--border2);font-weight:600"><span class="icon" id="nav-sync-icon2">↻</span><span id="nav-sync-label2">Sync Now</span></button>
   <div class="sync-info" id="sync-info" style="padding:4px 12px;font-size:10px;color:#475569">Not connected</div>
   <div class="nav-section" style="margin-top:8px">Team</div>
@@ -294,6 +310,7 @@ tr:hover td{background:var(--surface2)}
   </div>
   <div id="nav-team"></div>
   <div class="nav-bottom">
+    <button onclick="doDisconnect()" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#94a3b8;font-size:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='rgba(255,255,255,.12)'" onmouseleave="this.style.background='rgba(255,255,255,.06)'"><span>&#x1F511;</span> Change PAT / Log out</button>
   </div>
 </nav>
 
@@ -323,7 +340,7 @@ const OWNER_META = {
   Sydon:   {color:"#9333ea",role:"Demo Environments"},
   Zakki:   {color:"#475569",role:"Communications"},
 };
-const STATES = ["In Progress","Active","Yet to Start","New","Closed"];
+const STATES = ["In Progress","Yet to Start","New","Closed"];
 const TL_START = new Date("2026-04-01");
 const TL_END   = new Date("2026-10-31");
 const TL_MS    = TL_END - TL_START;
@@ -460,9 +477,9 @@ function setTab(tab, extra){ closeNav();
   if(tab.startsWith("owner-")){
     const el=document.getElementById("nv-owner-"+tab.replace("owner-",""));
     if(el) el.classList.add("active");
-    ["nv-overview","nv-all","nv-mytasks","nv-weekly"].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
+    ["nv-overview","nv-all","nv-mytasks","nv-weekly","nv-exec"].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
   } else {
-    ["nv-overview","nv-all","nv-mytasks","nv-weekly"].forEach(id=>{
+    ["nv-overview","nv-all","nv-mytasks","nv-weekly","nv-exec"].forEach(id=>{
       const e=document.getElementById(id);
       if(e) e.classList.toggle("active", id==="nv-"+tab);
     });
@@ -627,7 +644,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
   // Feature/Story/Task rows
   hierarchy.forEach(ws=>{
     const gf = G.ganttFilter;
-    const filterActive = gf.state.length>0 || gf.owner.length>0 || gf.type.length>0;
+    const filterActive = gf.state.length>0 || gf.owner.length>0;
     const isExpF = G.expandedWS[ws.ws] === false ? false : (filterActive || G.expandedWS[ws.ws] === true);
     const wsc = WS_COLORS[ws.ws];
     const fLeft = tlPct(ws.feature.start), fW = tlW(ws.feature.start, ws.feature.target);
@@ -1004,9 +1021,9 @@ function renderOverview(){
     if(i.level===2) return true;
     return (gf.state.length===0 || gf.state.includes(i.state)) &&
            (gf.owner.length===0 || gf.owner.includes(i.owner)) &&
-           (gf.type.length ===0 || gf.type.includes(i.type));
+           true;
   });
-  const hasFilter = gf.state.length>0 || gf.owner.length>0 || gf.type.length>0;
+  const hasFilter = gf.state.length>0 || gf.owner.length>0;
 
   // custom dropdown multiselect builder
   function msDropdown(key, label, opts){
@@ -1079,7 +1096,6 @@ function renderOverview(){
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
     ${msDropdown("state","State",STATES)}
     ${msDropdown("owner","Assigned To",ganttOwners)}
-    ${msDropdown("type","Type",ganttTypes)}
     ${hasFilter?`<button onclick="ganttFilterClear()" style="padding:5px 10px;font-size:11px;color:var(--text3);background:none;border:1px solid var(--border2);border-radius:6px;cursor:pointer;white-space:nowrap">Clear all</button>
     <span style="font-size:11px;color:var(--text3)">${ganttItems.length} of ${items.length} shown</span>`:""}
   </div>
@@ -1187,7 +1203,7 @@ function renderAll(){
     </div>
     <div class="tbl-wrap"><table>
       <thead><tr>
-        ${Th("id","#")}${Th("ws","WS")}${Th("title","Title")}${Th("owner","Owner")}
+        ${Th("id","#")}${Th("title","Title")}${Th("owner","Owner")}
         <th>State</th>${Th("target","Target")}
       </tr></thead>
       <tbody>
@@ -1196,7 +1212,6 @@ function renderAll(){
           const dtLabel=it.state==="Closed"?fmtDate(it.target):u==="overdue"?`${Math.abs(d)}d overdue`:fmtDate(it.target);
           return `<tr style="background:${u==="overdue"?"#fff5f5":""};cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoUrl(it.id)}','_blank')">
             <td style="font-family:var(--mono);font-size:10px"><a href="${adoUrl(it.id)}" target="_blank" rel="noopener" style="color:var(--text3);text-decoration:none;cursor:pointer" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">#${it.id}</a></td>
-            
             <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:${(it.level-2)*10+10}px">${it.title}</td>
             <td style="font-size:12px">${it.owner}</td>
             <td>${stateSelect(it.id,it.state,"allStateChange")}</td>
@@ -1844,6 +1859,7 @@ function render(){
   else if(tab==="mytasks") mc.innerHTML = renderMyTasks();
   else if(tab==="overview") mc.innerHTML = renderOverview();
   else if(tab==="weekly") mc.innerHTML = renderWeeklyAnalysis();
+  else if(tab==="exec") mc.innerHTML = renderExec();
   else if(tab==="all") mc.innerHTML = renderAll();
   else if(tab.startsWith("owner-")) mc.innerHTML = renderOwner(tab.replace("owner-",""));
 }
@@ -1873,6 +1889,471 @@ function render(){
   render();
 })();
 
+
+/* ── EXECUTIVE SUMMARY ── */
+function renderExec(){
+  var items  = effectiveItems();
+  var total  = items.length;
+  var closed = items.filter(function(i){ return i.state==='Closed'; }).length;
+  var pct    = total ? Math.round(closed/total*100) : 0;
+  var overdue= items.filter(function(i){ return urgency(i)==='overdue'; });
+  var active = items.filter(function(i){ return i.state==='In Progress'||i.state==='Active'; });
+  var now    = new Date();
+
+  // Overall RAG
+  var rag, ragColor, ragBg, ragLine;
+  if(overdue.length>0){
+    rag='At Risk'; ragColor='#dc2626'; ragBg='#fef2f2';
+    ragLine=overdue.length+' item'+(overdue.length>1?'s':'')+' are overdue and require immediate attention.';
+  } else if(pct<40){
+    rag='In Progress'; ragColor='#d97706'; ragBg='#fffbeb';
+    ragLine='Project is progressing at '+pct+'% completion. No overdue items at this time.';
+  } else {
+    rag='On Track'; ragColor='#16a34a'; ragBg='#f0fdf4';
+    ragLine='Project is '+pct+'% complete with no overdue items.';
+  }
+
+  // Status sentence
+  var sentence = 'The New Time2Eat Migration Project is '+pct+'% complete ('
+    +closed+' of '+total+' items closed)'
+    +(overdue.length>0?' with '+overdue.length+' overdue item'+(overdue.length>1?'s':'')+' requiring immediate attention.':'.');
+
+  // Workstream table
+  var wsRows = Object.keys(WS_META).map(function(ws){
+    var its  = items.filter(function(i){ return i.ws===ws; });
+    if(!its.length) return null;
+    var wsCl = its.filter(function(i){ return i.state==='Closed'; }).length;
+    var wsOd = its.filter(function(i){ return urgency(i)==='overdue'; }).length;
+    var wsAc = its.filter(function(i){ return i.state==='In Progress'||i.state==='Active'; }).length;
+    var wsPct= its.length?Math.round(wsCl/its.length*100):0;
+    var wsRag= wsOd>0?'#dc2626':wsPct<30?'#d97706':'#16a34a';
+    var wsRagLabel= wsOd>0?'At Risk':wsPct<30?'In Progress':'On Track';
+    return '<tr style="border-bottom:1px solid #e5e7eb">'
+      +'<td style="padding:10px 14px;font-size:13px;font-weight:600;color:#111827">'+WS_META[ws].name+'</td>'
+      +'<td style="padding:10px 14px;text-align:center;font-size:13px;color:#374151">'+its.length+'</td>'
+      +'<td style="padding:10px 14px;text-align:center;font-size:13px;color:#374151">'+wsCl+' ('+wsPct+'%)</td>'
+      +'<td style="padding:10px 14px;text-align:center;font-size:13px;color:'+(wsOd>0?'#dc2626':'#374151')+';font-weight:'+(wsOd>0?700:400)+'">'+wsOd+'</td>'
+      +'<td style="padding:10px 14px;text-align:center">'
+        +'<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:'+wsRag+'18;color:'+wsRag+';font-size:11px;font-weight:700">'
+        +'<span style="width:6px;height:6px;border-radius:50%;background:'+wsRag+'"></span>'+wsRagLabel
+        +'</span>'
+      +'</td>'
+    +'</tr>';
+  }).filter(Boolean).join('');
+
+  // Key risks
+  var ownerOd = {};
+  overdue.forEach(function(i){ ownerOd[i.owner]=(ownerOd[i.owner]||[]); ownerOd[i.owner].push(i); });
+  var riskBullets = Object.entries(ownerOd)
+    .sort(function(a,b){ return b[1].length-a[1].length; })
+    .slice(0,5)
+    .map(function(e){
+      var o=e[0], its=e[1];
+      var wsList=[...new Set(its.map(function(i){return WS_META[i.ws]?WS_META[i.ws].name:i.ws;}))].slice(0,2).join(', ');
+      return '<li style="margin-bottom:8px;color:#374151;font-size:13px;line-height:1.6">'
+        +'<strong>'+o+'</strong> has '+its.length+' overdue item'+(its.length>1?'s':'')+' in '+wsList+'.'
+        +'</li>';
+    }).join('');
+  if(!riskBullets) riskBullets='<li style="color:#374151;font-size:13px">No overdue items at this time.</li>';
+
+  // Recommended actions
+  var actions = [];
+  if(overdue.length>0) actions.push('Conduct an immediate review of '+overdue.length+' overdue items with responsible owners and agree on revised timelines.');
+  var slowWS = Object.keys(WS_META).filter(function(ws){
+    var its=items.filter(function(i){return i.ws===ws;});
+    return its.length>0 && Math.round(items.filter(function(i){return i.ws===ws&&i.state==='Closed';}).length/its.length*100)<25;
+  });
+  if(slowWS.length) actions.push('Accelerate progress in low-completion workstreams: '+slowWS.map(function(ws){ return WS_META[ws].name; }).slice(0,3).join(', ')+'.');
+  if(pct>=70) actions.push('Project is nearing completion. Focus on closing remaining '+( total-closed)+' items and preparing for go-live readiness.');
+  else actions.push('Maintain current delivery velocity to achieve project targets on schedule.');
+  var actionBullets = actions.map(function(a){
+    return '<li style="margin-bottom:8px;color:#374151;font-size:13px;line-height:1.6">'+a+'</li>';
+  }).join('');
+
+  var dateStr = now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var syncStr = G.lastSync ? new Date(G.lastSync).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Not synced';
+
+  return '<div style="max-width:860px;margin:0 auto;padding:24px;font-family:var(--font)">'
+
+    // Header
+    +'<div style="border-bottom:3px solid #1e3a5f;padding-bottom:16px;margin-bottom:24px">'
+      +'<div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Executive Summary</div>'
+      +'<div style="font-size:24px;font-weight:800;color:#111827;margin-bottom:8px">New Time2Eat Migration Project</div>'
+      +'<div style="display:flex;gap:20px;font-size:12px;color:#6b7280">'
+        +'<span>📅 '+dateStr+'</span>'
+        +'<span>🔄 Data as of '+syncStr+'</span>'
+        
+      +'</div>'
+    +'</div>'
+
+    // Status summary
+    +'<div style="background:'+ragBg+';border-left:4px solid '+ragColor+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:24px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">'
+        +'<span style="background:'+ragColor+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase">'+rag+'</span>'
+        +'<span style="font-size:14px;font-weight:600;color:#111827">Project Health</span>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#374151;line-height:1.6">'+sentence+'</div>'
+    +'</div>'
+
+    // Metrics row
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">'
+      +[
+        {label:'Total Items',val:total,sub:'in scope',color:'#1e3a5f'},
+        {label:'Completed',val:closed+' ('+pct+'%)',sub:'items closed',color:'#16a34a'},
+        {label:'In Progress',val:active.length,sub:'active items',color:'#2563eb'},
+        {label:'Overdue',val:overdue.length,sub:'require action',color:overdue.length>0?'#dc2626':'#16a34a'}
+      ].map(function(m){
+        return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">'
+          +'<div style="font-size:28px;font-weight:800;color:'+m.color+';line-height:1">'+m.val+'</div>'
+          +'<div style="font-size:12px;font-weight:600;color:#111827;margin-top:4px">'+m.label+'</div>'
+          +'<div style="font-size:11px;color:#9ca3af;margin-top:2px">'+m.sub+'</div>'
+        +'</div>';
+      }).join('')
+    +'</div>'
+
+    // Completion bar
+    +'<div style="margin-bottom:24px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;margin-bottom:6px">'
+        +'<span>Overall Completion</span><span>'+closed+' of '+total+' items</span>'
+      +'</div>'
+      +'<div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden">'
+        +'<div style="height:100%;border-radius:5px;background:'+ragColor+';width:'+pct+'%;transition:width .3s"></div>'
+      +'</div>'
+    +'</div>'
+
+    // Workstream table
+    +'<div style="margin-bottom:24px">'
+      +'<div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">Workstream Summary</div>'
+      +'<table style="width:100%;border-collapse:collapse">'
+        +'<thead>'
+          +'<tr style="background:#f9fafb">'
+            +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Workstream</th>'
+            +'<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Items</th>'
+            +'<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Completed</th>'
+            +'<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Overdue</th>'
+            +'<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Status</th>'
+          +'</tr>'
+        +'</thead>'
+        +'<tbody>'+wsRows+'</tbody>'
+      +'</table>'
+    +'</div>'
+
+    // Key risks
+    +'<div style="margin-bottom:24px">'
+      +'<div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">Key Risks</div>'
+      +'<ul style="margin:0;padding-left:18px">'+riskBullets+'</ul>'
+    +'</div>'
+
+    // Recommended actions
+    +'<div style="margin-bottom:24px">'
+      +'<div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">Recommended Actions</div>'
+      +'<ul style="margin:0;padding-left:18px">'+actionBullets+'</ul>'
+    +'</div>'
+
+    +'<div style="font-size:11px;color:#9ca3af;text-align:center;padding-top:16px;border-top:1px solid #e5e7eb">'
+      +'This summary is auto-generated from live Azure DevOps data. For detailed item lists, refer to the full project dashboard.'
+    +'</div>'
+
+  +'</div>';
+}
+var _chatAllowed=['Sydon','MB','Dakshath'];
+function _chatCheckAccess(){
+  var fab=document.getElementById('chat-fab');
+  if(!fab)return;
+  fab.style.display=(_chatAllowed.indexOf(G.currentUser)!==-1)?'flex':'none';
+  var execBtn=document.getElementById('nv-exec');
+  if(execBtn) execBtn.style.display=(_chatAllowed.indexOf(G.currentUser)!==-1)?'':'none';
+}
+window.chatOpen=function(){document.getElementById('chat-panel').classList.toggle('open');};
+
+// Chat state
+var _chatPending=null; // stores last raw search result for detail-on-request
+
+function _chatAddMsg(text){
+  var msgs=document.getElementById('chat-msgs');
+  var b=document.createElement('div');b.className='cm b';b.textContent=text;msgs.appendChild(b);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function _chatSummary(raw, items){
+  if(!items||!items.length) return raw;
+  var closed  = items.filter(function(i){return i.state==='Closed';}).length;
+  var overdue = items.filter(function(i){return urgency(i)==='overdue';}).length;
+  var owners  = {};
+  items.forEach(function(i){owners[i.owner]=(owners[i.owner]||0)+1;});
+  var topOwners = Object.entries(owners).sort(function(a,b){return b[1]-a[1];}).slice(0,2).map(function(e){return e[0];});
+  var nearest = items.filter(function(i){return i.target&&i.state!=='Closed';})
+    .sort(function(a,b){return new Date(a.target)-new Date(b.target);})[0];
+  var lines=[];
+  // First line: count
+  lines.push('I found '+items.length+' item'+(items.length>1?'s':'')+' matching your query.');
+  // Owners
+  if(topOwners.length) lines.push('Primarily owned by '+topOwners.join(' and ')+'.');
+  // Nearest deadline
+  if(nearest) lines.push('Nearest deadline: '+fmtDate(nearest.target)+' ('+nearest.title.slice(0,40)+(nearest.title.length>40?'...':'')+').');
+  // Risk
+  if(overdue>0) lines.push('\u26a0 '+overdue+' item'+(overdue>1?'s are':' is')+' overdue and need attention.');
+  else if(closed===items.length) lines.push('\u2705 All items in this set are closed.');
+  lines.push('Would you like me to show the detailed items?');
+  return lines.join('\n');
+}
+
+function _parseItems(raw){
+  // Extract items from effectiveItems matching the raw result lines
+  if(!raw) return [];
+  var items=effectiveItems();
+  var ids=[];
+  raw.split('\n').forEach(function(l){
+    var m=l.match(/#(\d+)/);
+    if(m) ids.push(parseInt(m[1]));
+  });
+  if(ids.length) return items.filter(function(i){return ids.indexOf(i.id)!==-1;});
+  return [];
+}
+
+window.chatSend=function(){
+  var inp=document.getElementById('chat-in');
+  var txt=(inp.value||'').trim();
+  if(!txt)return;
+  inp.value='';
+  var msgs=document.getElementById('chat-msgs');
+  var u=document.createElement('div');u.className='cm u';u.textContent=txt;msgs.appendChild(u);
+  var q=txt.toLowerCase();
+
+  // 1. Conversational replies
+  if(/^(hi|hello|hey)/.test(q)){
+    _chatAddMsg("Hi! I can help you find project items. Try asking about an owner, workstream, or status - or type help.");
+    return;
+  }
+  if(/^(thanks|thank you|cheers|great)/.test(q)){
+    _chatAddMsg("You're welcome! Let me know if there's anything else.");
+    return;
+  }
+  if(/^(bye|goodbye|see you|cya)/.test(q)){
+    _chatAddMsg('Goodbye! Come back anytime.');
+    return;
+  }
+  if(/^help/.test(q)){
+    _chatAddMsg("I can answer questions like:\n- What is Anthony working on?\n- Show WS3 items\n- What's overdue?\n- What's due next week?\n- Show completed items\n- Type test for a project snapshot.");
+    return;
+  }
+
+  // 2. Pending detail request
+  if(_chatPending && /^(yes|show|show me|details|detail|list|give me|ok)/.test(q)){
+    _chatAddMsg(_chatPending);
+    _chatPending=null;
+    return;
+  }
+  if(_chatPending && /^(no|nope|skip|never mind)/.test(q)){
+    _chatAddMsg('No problem. Ask me anything else!');
+    _chatPending=null;
+    return;
+  }
+
+  // 3. Test command
+  var reply='';
+  if(q==='test'&&window.DashboardAdapter){
+    var d=DashboardAdapter.snapshot();
+    reply='Project: '+d.completion.pct+'% complete ('+d.completion.closed+' of '+d.completion.total+' items). '
+      +'Overdue: '+d.overdue.length+'. In Progress: '+d.inProgress.length+'. This week: '+d.thisWeek.length+'.';
+    _chatAddMsg(reply); return;
+  }
+
+  // 4. Entity / keyword search — only if message looks like a project question
+  var projectWords=['ws','workstream','overdue','item','task','owner','week','due','status',
+    'progress','complete','closed','assigned','milestone','deadline','show','find','list','what','who','which'];
+  var looksLikeQuery=projectWords.some(function(w){return q.indexOf(w)!==-1;});
+  var raw='';
+  if(looksLikeQuery){
+    if(window.DashboardSearchExtract) raw=DashboardSearchExtract(txt)||'';
+    if(!raw&&window.DashboardSearch) raw=DashboardSearch(txt)||'';
+  }
+
+  if(raw){
+    var matchedItems=_parseItems(raw);
+    if(matchedItems.length>0){
+      _chatPending=raw;
+      _chatAddMsg(_chatSummary(raw,matchedItems));
+    } else {
+      _chatAddMsg(raw);
+    }
+  } else {
+    _chatAddMsg("I understand your question, but dashboard query support has not been implemented yet.");
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+};
+
+// Check chat access after render
+var _origRender=window.render;
+window.render=function(){if(_origRender)_origRender.apply(this,arguments);_chatCheckAccess();};
+</script>
+<button id="chat-fab" onclick="chatOpen()" title="Chat">&#x1F4AC;</button>
+<div id="chat-panel">
+  <div id="chat-ph">
+    <div style="width:28px;height:28px;border-radius:8px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:14px">&#x1F916;</div>
+    <div style="flex:1;font-size:13px;font-weight:700;color:var(--text)">T2E Assistant</div>
+    <button onclick="chatOpen()" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3)">&#x2715;</button>
+  </div>
+  <div id="chat-msgs"><div class="cm b">&#x1F44B; Hi! How can I help?</div></div>
+  <div id="chat-ir">
+    <input id="chat-in" placeholder="Type a message..." onkeydown="if(event.key==='Enter')chatSend()">
+    <button id="chat-snd" onclick="chatSend()">&#x2191;</button>
+  </div>
+</div>
+
+<script>
+window.DashboardAdapter = {
+  snapshot: function() {
+    var items = effectiveItems();
+    var closed = items.filter(function(i){ return i.state === 'Closed'; });
+    var overdueItems = items.filter(function(i){ return urgency(i) === 'overdue'; });
+    var thisWeek = items.filter(function(i){ return urgency(i) === 'thisweek'; });
+    var inProgress = items.filter(function(i){ return i.state === 'In Progress' || i.state === 'Active'; });
+    var t = items.length;
+    var wsMap = {};
+    items.forEach(function(i){
+      if(!wsMap[i.ws]) wsMap[i.ws] = {id:i.ws, name:(WS_META[i.ws]&&WS_META[i.ws].name)||i.ws, items:[], closed:0, overdue:0};
+      wsMap[i.ws].items.push(i);
+      if(i.state==='Closed') wsMap[i.ws].closed++;
+      if(urgency(i)==='overdue') wsMap[i.ws].overdue++;
+    });
+    return {
+      asOf:        G.lastSync,
+      currentUser: G.currentUser,
+      completion:  { total:t, closed:closed.length, pct: t ? Math.round(closed.length/t*100) : 0 },
+      overdue:     overdueItems.map(function(i){ return {id:i.id,title:i.title,owner:i.owner,ws:i.ws,target:i.target}; }),
+      thisWeek:    thisWeek.map(function(i){ return {id:i.id,title:i.title,owner:i.owner,ws:i.ws,target:i.target}; }),
+      inProgress:  inProgress.map(function(i){ return {id:i.id,title:i.title,owner:i.owner,ws:i.ws}; }),
+      workstreams: Object.values(wsMap).map(function(w){ return {id:w.id,name:w.name,total:w.items.length,closed:w.closed,overdue:w.overdue,pct:w.items.length?Math.round(w.closed/w.items.length*100):0}; })
+    };
+  }
+};
+</script>
+<script>
+window.DashboardSearch = function(query) {
+  if(!query || !window.DashboardAdapter) return null;
+  var q = query.toLowerCase().trim();
+  var items = effectiveItems();
+
+  // Search across all fields
+  var results = items.filter(function(i) {
+    return (i.title  && i.title.toLowerCase().indexOf(q)  !== -1) ||
+           (i.owner  && i.owner.toLowerCase().indexOf(q)  !== -1) ||
+           (i.state  && i.state.toLowerCase().indexOf(q)  !== -1) ||
+           (i.ws     && i.ws.toLowerCase().indexOf(q)     !== -1) ||
+           (i.type   && i.type.toLowerCase().indexOf(q)   !== -1) ||
+           (i.target && i.target.indexOf(q)               !== -1) ||
+           (String(i.id).indexOf(q)                       !== -1) ||
+           (WS_META[i.ws] && WS_META[i.ws].name && WS_META[i.ws].name.toLowerCase().indexOf(q) !== -1);
+  });
+
+  if(!results.length) return 'No items matched "' + query + '". Try searching by owner name, workstream, or state.';
+
+  var closed  = results.filter(function(i){ return i.state === 'Closed'; }).length;
+  var inprog  = results.filter(function(i){ return i.state === 'In Progress' || i.state === 'Active'; }).length;
+  var overdue = results.filter(function(i){ return urgency(i) === 'overdue'; }).length;
+  var pct     = Math.round(closed/results.length*100);
+  var summary = results.length + ' item' + (results.length>1?'s':'') + ' matched "' + query + '":\n'
+    + '  • ' + pct + '% complete (' + closed + ' closed)'
+    + (inprog ? ', ' + inprog + ' in progress' : '')
+    + (overdue ? ', ⚠ ' + overdue + ' overdue' : '') + '.';
+  var top = results.slice(0,5).map(function(i){
+    var flag = urgency(i)==='overdue' ? ' ⚠' : i.state==='Closed' ? ' ✓' : '';
+    return '  ' + i.title + ' (' + i.owner + ', ' + (i.target||'no date') + ')' + flag;
+  });
+  var more = results.length > 5 ? '  ...and ' + (results.length-5) + ' more items.' : '';
+  return summary + '\n' + top.join('\n') + (more ? '\n'+more : '');
+};
+</script>
+<script>
+window.DashboardSearchExtract = function(question) {
+  var q = question.toLowerCase();
+  var items = effectiveItems();
+
+  // Extract owner name
+  var owner = null;
+  Object.keys(OWNER_META).forEach(function(name) {
+    if(q.indexOf(name.toLowerCase()) !== -1) owner = name;
+  });
+
+  // Extract workstream (WSx or name)
+  var ws = null;
+  Object.keys(WS_META).forEach(function(k) {
+    if(q.indexOf(k.toLowerCase()) !== -1) ws = k;
+    if(WS_META[k].name && q.indexOf(WS_META[k].name.toLowerCase()) !== -1) ws = k;
+  });
+
+  // Extract date — looks for month name + day number
+  var dateStr = null;
+  var months = {january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11,
+                jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  Object.keys(months).forEach(function(m) {
+    var idx = q.indexOf(m);
+    if(idx === -1) return;
+    var dayMatch = q.slice(idx).match(/\b(\d{1,2})(st|nd|rd|th)?\b/);
+    if(dayMatch) {
+      var day = parseInt(dayMatch[1]);
+      var year = new Date().getFullYear();
+      var d = new Date(year, months[m], day);
+      dateStr = d.toISOString().slice(0, 10);
+    }
+  });
+
+  // State keywords
+  var stateFilter = null;
+  if(q.indexOf('complet') !== -1 || q.indexOf('closed') !== -1 || q.indexOf('done') !== -1) stateFilter = 'Closed';
+  else if(q.indexOf('in progress') !== -1 || q.indexOf('active') !== -1) stateFilter = 'In Progress';
+  else if(q.indexOf('not started') !== -1 || q.indexOf('yet to start') !== -1) stateFilter = 'Yet to Start';
+  else if(q.indexOf('new') !== -1) stateFilter = 'New';
+
+  // Time keywords — next week, this week, overdue
+  var timeFilter = null;
+  if(q.indexOf('next week') !== -1) timeFilter = 'nextweek';
+  else if(q.indexOf('this week') !== -1 || q.indexOf('due soon') !== -1) timeFilter = 'thisweek';
+  else if(q.indexOf('overdue') !== -1 || q.indexOf('late') !== -1 || q.indexOf('behind') !== -1) timeFilter = 'overdue';
+
+  // No entity found — fall through to plain search
+  if(!owner && !ws && !dateStr && !timeFilter && !stateFilter) return null;
+
+  // Filter items
+  var results = items.filter(function(i) {
+    if(owner && i.owner !== owner) return false;
+    if(ws && i.ws !== ws) return false;
+    if(dateStr && i.target !== dateStr) return false;
+    if(stateFilter && i.state !== stateFilter) return false;
+    if(timeFilter === 'overdue' && urgency(i) !== 'overdue') return false;
+    if(timeFilter === 'thisweek' && urgency(i) !== 'thisweek') return false;
+    if(timeFilter === 'nextweek' && urgency(i) !== 'nextweek') return false;
+    return true;
+  });
+
+  if(!results.length){
+    var who = owner ? owner : ws ? (WS_META[ws]?WS_META[ws].name:ws) : dateStr;
+    return 'No items found for ' + who + '. They may have no assigned work, or data may need a sync.';
+  }
+
+  var closed  = results.filter(function(i){ return i.state==='Closed'; }).length;
+  var inprog  = results.filter(function(i){ return i.state==='In Progress'||i.state==='Active'; }).length;
+  var overdue = results.filter(function(i){ return urgency(i)==='overdue'; }).length;
+  var pct     = Math.round(closed/results.length*100);
+  var label   = owner ? owner+"'s work"
+    : ws ? (WS_META[ws]?WS_META[ws].name:ws)
+    : timeFilter === 'nextweek' ? 'Due next week'
+    : timeFilter === 'thisweek' ? 'Due this week'
+    : timeFilter === 'overdue'  ? 'Overdue items'
+    : stateFilter ? stateFilter + ' items'
+    : 'Items on '+dateStr;
+  var summary = label + ' — ' + results.length + ' item' + (results.length>1?'s':'') + ':\n'
+    + '  • ' + pct + '% complete (' + closed + ' closed)'
+    + (inprog ? ', ' + inprog + ' in progress' : '')
+    + (overdue ? ', ⚠ ' + overdue + ' overdue' : '') + '.';
+  var top = results.slice(0,5).map(function(i){
+    var flag = urgency(i)==='overdue' ? ' ⚠' : i.state==='Closed' ? ' ✓' : '';
+    return '  ' + i.title + ' (' + (i.target||'no date') + ', ' + i.state + ')' + flag;
+  });
+  var more = results.length > 5 ? '  ...and ' + (results.length-5) + ' more.' : '';
+  return summary + '\n' + top.join('\n') + (more ? '\n'+more : '');
+};
 </script>
 </body>
 </html>
