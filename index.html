@@ -55,7 +55,7 @@ select,input,textarea{font-family:inherit}
 .card-sm{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
 
 /* ── METRIC GRID ── */
-.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.metric-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:20px}
 .mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px}
 .mc-lbl{font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .mc-val{font-size:26px;font-weight:600;line-height:1}
@@ -339,7 +339,7 @@ let G = {
   // ADO connection config — persisted in storage
   adoCfg: { orgUrl:"https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite", project:"Gartner - SQ Transformation", pat:"", epicId:5276 },
   rememberPat: false,
-  waFilter: {owner:"All", dateFrom:"", dateTo:""},
+  waFilter: {owner:"All", dateFrom:"", dateTo:"", twState:"All"},
   currentUser: null,
   tab: "overview",
   expandedWS: {},
@@ -635,7 +635,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
     const closedPct = allChildren.length ? allChildren.filter(i=>i.state==="Closed").length/allChildren.length*100 : 0;
 
     html += `<div class="row-feat" onclick="toggleWS('${ws.ws}')">
-      <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#f8fafc;border-left:3px solid ${wsc}">
+      <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#f8fafc;border-left:3px solid ${wsc}" title="${ws.feature.title} | ${ws.ws}">
         <span style="font-size:10px;color:var(--text3);width:14px;text-align:center;flex-shrink:0">${isExpF?"▼":"▶"}</span>
         <span style="width:9px;height:9px;border-radius:2px;background:${wsc};flex-shrink:0"></span>
         <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text)" title="Feature: ${ws.feature.title}">${ws.feature.title}</span>
@@ -657,7 +657,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
         const op=barOpacity(us.story);
 
         html += `<div class="row-story" style="cursor:${hasTasks?"pointer":"default"}" onclick="${hasTasks?"toggleStory("+us.story.id+")":"void(0)"}">
-          <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;padding-left:18px;border-left:3px solid ${wsc}44">
+          <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;padding-left:18px;border-left:3px solid ${wsc}44" title="${us.story.title} | ${us.story.owner} | ${us.story.state}">
             <span style="width:14px;font-size:10px;color:var(--text3);text-align:center;flex-shrink:0">${hasTasks?(isExpS?"▼":"▶"):"<span style='opacity:.3'>—</span>"}</span>
             <span style="width:7px;height:7px;border-radius:50%;background:${bc};opacity:${op};flex-shrink:0"></span>
             <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text2)" title="User Story: ${us.story.title}">${us.story.title}</span>
@@ -674,7 +674,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
             const tLeft=tlPct(task.start),tW=tlW(task.start,task.target);
             const tbc=barColor(task),tOp=barOpacity(task);
             html += `<div class="row-task">
-              <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#fafbfd;padding-left:34px;border-left:3px solid ${wsc}22">
+              <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#fafbfd;padding-left:34px;border-left:3px solid ${wsc}22" title="${task.title} | ${task.owner} | ${task.state}">
                 <span style="width:5px;height:5px;border-radius:50%;background:${tbc};opacity:${tOp};flex-shrink:0;margin-right:4px"></span>
                 <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text3)" title="Task: #${task.id} · ${task.owner} · ${task.title}">${task.title}</span>
                 <span style="font-size:9px;color:var(--text3);font-family:var(--mono);opacity:.6">${task.owner[0]}</span>
@@ -717,8 +717,8 @@ function filterBarHTML(pool, fOwner, fWS, fQ, onChange, showSearch=false){
 
   return `<div class="filter-bar">
     ${showSearch?(()=>{
-      const sid = onChange==="filterOD"?"od-search-inp":"tw-search-inp";
-      const sfn = onChange==="filterOD"?"odSearch":"twSearch";
+      const sid = onChange==="filterOD"?"od-search-inp":onChange==="filterIP"?"ip-search-inp":"tw-search-inp";
+      const sfn = onChange==="filterOD"?"odSearch":onChange==="filterIP"?"ipSearch":"twSearch";
       return `<input class="inp" id="${sid}" placeholder="Search\u2026" value="${fQ||""}" oninput="${sfn}(this.value)" style="width:130px;padding:3px 8px;font-size:11px;height:24px">`;
     })():""}
     ${wss.length>1?`<select class="inp" onchange="${onChange}('ws',this.value)" style="width:170px;padding:2px 6px;font-size:11px;height:24px">
@@ -753,6 +753,7 @@ function itemRowHTML(it, showWS=false){
 // ── FILTER STATE for tabs ──
 let F = {
   od:{owner:"All",ws:"All",q:""},
+  ip:{owner:"All",ws:"All",q:""},
   tw:{owner:"All",ws:"All",q:""},
   homeOwner:"All", homeWS:"All", homeQ:"",
   callOwner:"All", callWS:"All",
@@ -762,6 +763,7 @@ let F = {
 function filterChange(ns, key, val){
   if(key==="clear"){
     if(ns==="od") F.od={owner:"All",ws:"All",q:""};
+    else if(ns==="ip") F.ip={owner:"All",ws:"All",q:""};
     else if(ns==="tw") F.tw={owner:"All",ws:"All",q:""};
     else if(ns==="home"){ F.homeOwner="All"; F.homeWS="All"; F.homeQ=""; }
     else if(ns==="call"){ F.callOwner="All"; F.callWS="All"; }
@@ -791,6 +793,7 @@ document.addEventListener('click', function(e){
   }
 });
 window.filterOD = (k,v)=>filterChange("od",k,v);
+window.filterIP = (k,v)=>filterChange("ip",k,v);
 window.filterTW = (k,v)=>filterChange("tw",k,v);
 window.filterHome = (k,v)=>filterChange("home",k,v);
 window.filterCall = (k,v)=>filterChange("call",k,v);
@@ -841,6 +844,8 @@ window.ownerPageSearch = function(val){
 };
 var _odTimer=null, _twTimer=null;
 window.odSearch = function(val){ clearTimeout(_odTimer); _odTimer=setTimeout(function(){ _filterSearch('od',val,'od-search-inp'); },120); };
+var _ipTimer=null;
+window.ipSearch = function(val){ clearTimeout(_ipTimer); _ipTimer=setTimeout(function(){ _filterSearch('ip',val,'ip-search-inp'); },120); };
 window.twSearch = function(val){ clearTimeout(_twTimer); _twTimer=setTimeout(function(){ _filterSearch('tw',val,'tw-search-inp'); },120); };
 window.toggleWS = toggleWS;
 window.toggleStory = toggleStory;
@@ -959,6 +964,7 @@ function renderOverview(){
   const pct      = items.length ? Math.round(closed.length/items.length*100) : 0;
 
   const filteredOD = overdue.filter(i=>(F.od.owner==="All"||i.owner===F.od.owner)&&(F.od.ws==="All"||i.ws===F.od.ws)&&(!F.od.q||i.title.toLowerCase().includes(F.od.q.toLowerCase()))).sort((a,b)=>dl(a.target)-dl(b.target));
+  const filteredIP = inprog.filter(i=>(F.ip.owner==="All"||i.owner===F.ip.owner)&&(F.ip.ws==="All"||i.ws===F.ip.ws)&&(!F.ip.q||i.title.toLowerCase().includes(F.ip.q.toLowerCase()))).sort((a,b)=>a.owner.localeCompare(b.owner));
   const filteredTW = thisweek.filter(i=>(F.tw.owner==="All"||i.owner===F.tw.owner)&&(F.tw.ws==="All"||i.ws===F.tw.ws)&&(!F.tw.q||i.title.toLowerCase().includes(F.tw.q.toLowerCase()))).sort((a,b)=>dl(a.target)-dl(b.target));
 
   const wsStats = Object.keys(WS_META).map(ws=>{
@@ -984,6 +990,7 @@ function renderOverview(){
     <div class="mc" style="cursor:pointer" onclick="F.allState='All';F.allOwner='All';F.allQ='';setTab('all')" title="View all items" onmouseenter="this.style.boxShadow='0 0 0 2px var(--blue)'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">Total Items</div><div class="mc-val">${items.length}</div><div class="mc-sub">${pct}% complete</div>
       <div class="prog-bar" style="margin-top:8px"><div class="prog-fill" style="width:${pct}%;background:var(--green)"></div></div></div>
     <div class="mc good" style="cursor:pointer" onclick="F.allState='Closed';F.allOwner='All';F.allQ='';setTab('all')" title="View closed items" onmouseenter="this.style.boxShadow='0 0 0 2px #10b981'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">Closed</div><div class="mc-val">${closed.length}</div><div class="mc-sub">of ${items.length} total</div></div>
+    <div class="mc" style="cursor:pointer;border-color:#bfdbfe;background:#eff6ff" onclick="document.getElementById('ov-inprog')&&document.getElementById('ov-inprog').scrollIntoView({behavior:'smooth',block:'start'})" title="View in progress items" onmouseenter="this.style.boxShadow='0 0 0 2px #3b82f6'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl" style="color:#1d4ed8">In Progress</div><div class="mc-val" style="color:#1d4ed8">${inprog.length}</div><div class="mc-sub">active items</div></div>
     <div class="mc ${overdue.length>0?"danger":""}" style="cursor:pointer" onclick="document.getElementById('ov-overdue')&&document.getElementById('ov-overdue').scrollIntoView({behavior:'smooth',block:'start'})" title="Scroll to overdue items" onmouseenter="this.style.boxShadow='0 0 0 2px #ef4444'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">⚠ Overdue</div><div class="mc-val">${overdue.length}</div><div class="mc-sub">need immediate action</div></div>
     <div class="mc ${thisweek.length>0?"warn":""}" style="cursor:pointer" onclick="document.getElementById('ov-thisweek')&&document.getElementById('ov-thisweek').scrollIntoView({behavior:'smooth',block:'start'})" title="Scroll to due this week" onmouseenter="this.style.boxShadow='0 0 0 2px #f59e0b'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">⏰ Due this week</div><div class="mc-val">${thisweek.length}</div><div class="mc-sub">${inprog.length} in progress</div></div>
   </div>`;
@@ -1113,6 +1120,18 @@ function renderOverview(){
     </div>`;
   }
 
+  // In Progress
+  html += `<div id="ov-inprog" class="card" style="margin-bottom:16px;border-color:#bfdbfe">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="section-title" style="margin-top:0;margin-bottom:0">
+        <span style="color:#3b82f6">●</span> In Progress
+        <span class="badge" style="background:#dbeafe;color:#1d4ed8">${filteredIP.length}${filteredIP.length!==inprog.length?" of "+inprog.length:""}</span>
+      </div>
+    </div>
+    ${filterBarHTML(inprog,F.ip.owner,F.ip.ws,F.ip.q,"filterIP",true)}
+    ${filteredIP.length===0?`<div class="empty-state" style="padding:12px 0">No items match the filter</div>`:`<div class="item-list">${filteredIP.map(it=>itemRowHTML(it,true)).join("")}</div>`}
+  </div>`;
+
   // Due this week
   html += `<div id="ov-thisweek" class="card">
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1169,7 +1188,7 @@ function renderAll(){
     <div class="tbl-wrap"><table>
       <thead><tr>
         ${Th("id","#")}${Th("ws","WS")}${Th("title","Title")}${Th("owner","Owner")}
-        <th>State</th>${Th("target","Target")}<th>Urgency</th>
+        <th>State</th>${Th("target","Target")}
       </tr></thead>
       <tbody>
         ${filtered.map(it=>{
@@ -1182,7 +1201,6 @@ function renderAll(){
             <td style="font-size:12px">${it.owner}</td>
             <td>${stateSelect(it.id,it.state,"allStateChange")}</td>
             <td style="font-family:var(--mono);font-size:11px;color:${u==="overdue"?"var(--red-t)":u==="thisweek"?"var(--amber-t)":""};font-weight:${["overdue","thisweek"].includes(u)?600:400}">${dtLabel}</td>
-            <td><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${{overdue:"var(--red)",thisweek:"var(--amber)",nextweek:"#f59e0b88",done:"var(--green)",later:"#cbd5e1"}[u]}"></span></td>
           </tr>`;
         }).join("")}
       </tbody>
@@ -1682,6 +1700,21 @@ function renderWeeklyAnalysis(){
     return waf.owner==="All" || i.owner===waf.owner;
   }).sort((a,b)=>new Date(a.target)-new Date(b.target));
 
+  // This Week: items due Mon-Sun of current week, not Closed
+  const _curMon = new Date(now.getFullYear(),now.getMonth(),now.getDate()-_todayDow,0,0,0);
+  const _curSun = new Date(_curMon.getFullYear(),_curMon.getMonth(),_curMon.getDate()+6,23,59,59);
+  const thisWeekItems = items.filter(i=>{
+    const t = i.target ? new Date(i.target) : null;
+    if(!t || t < _curMon || t > _curSun) return false;
+    if(waf.twState!=="All" && i.state!==waf.twState) return false;
+    return waf.owner==="All" || i.owner===waf.owner;
+  }).sort((a,b)=>{ const ac=a.state==="Closed"?1:0,bc=b.state==="Closed"?1:0; return ac-bc||new Date(a.target)-new Date(b.target); });
+  const thisWeekLabel = `${_curMon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${_curSun.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  const thisWeekStates = [...new Set(items.filter(i=>{
+    const t = i.target ? new Date(i.target) : null;
+    return t && t >= _curMon && t <= _curSun;
+  }).map(i=>i.state))].sort();
+
   // Group by workstream
   function groupByWS(arr){
     const map = {};
@@ -1691,8 +1724,9 @@ function renderWeeklyAnalysis(){
 
   // Show changedDate as the display date for completed items
   const completedMapped = completedLastWeek.map(i=>Object.assign({},i,{target:i.changedDate||i.target}));
-  const completedByWS = groupByWS(completedMapped);
-  const upcomingByWS  = groupByWS(upcomingNextWeek);
+  const completedByWS  = groupByWS(completedMapped);
+  const upcomingByWS   = groupByWS(upcomingNextWeek);
+  const thisWeekByWS   = groupByWS(thisWeekItems);
 
   const weekLabel = `${_lastMon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${_lastSun.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
   const nextLabel = `${upcomingStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${nextWeekEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
@@ -1746,6 +1780,23 @@ function renderWeeklyAnalysis(){
     <div style="font-size:11px;color:var(--text3);margin-top:10px;margin-bottom:12px">${weekLabel}</div>
     ${wsSection(changedByWS,"No status changes recorded in the last 7 days")}
     `:""}
+  </div>
+
+  <div class="card" style="margin-bottom:16px;border-color:#bfdbfe">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="section-title" style="margin:0;color:#1d4ed8">📋 This Week</div>
+      <span class="badge" style="background:#dbeafe;color:#1d4ed8">${thisWeekItems.length} items</span>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">${thisWeekLabel}</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:11px;color:var(--text2)">Status</label>
+      <select style="padding:4px 8px;border:1px solid ${waf.twState!=="All"?"var(--blue)":"var(--border2)"};border-radius:6px;font-size:11px;background:${waf.twState!=="All"?"var(--blue-bg)":"var(--surface)"};color:${waf.twState!=="All"?"var(--blue-t)":"var(--text)"};cursor:pointer;outline:none" onchange="G.waFilter.twState=this.value;render()">
+        <option value="All"${waf.twState==="All"?" selected":""}>All statuses</option>
+        ${thisWeekStates.map(s=>`<option value="${s}"${waf.twState===s?" selected":""}>${s}</option>`).join("")}
+      </select>
+      ${waf.twState!=="All"?`<button onclick="G.waFilter.twState='All';render()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">clear</button>`:""}
+    </div>
+    ${wsSection(thisWeekByWS,"Nothing due this week")}
   </div>
 
   <div class="two-col" style="gap:16px;align-items:start">
