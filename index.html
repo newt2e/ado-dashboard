@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>T2E Project Hub</title>
+<title>New Time2Eat Migration Project</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -79,6 +79,8 @@ select,input,textarea{font-family:inherit}
 /* ── ITEM LIST ── */
 .item-list{display:flex;flex-direction:column;gap:2px}
 .item-row{display:grid;align-items:center;padding:8px 10px;border-radius:6px;gap:10px;transition:background .12s;cursor:default;grid-template-columns:44px 1fr 70px 90px 120px}
+.ws-no-owner .item-row{grid-template-columns:44px 1fr 90px 120px}
+.ws-no-owner .iowner{display:none}
 .item-row:hover{background:var(--surface2)}
 .item-row.overdue{border-left:3px solid var(--red);padding-left:8px}
 .item-row.thisweek{border-left:3px solid var(--amber);padding-left:8px}
@@ -98,6 +100,7 @@ select,input,textarea{font-family:inherit}
 .ws-counts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
 .ws-expand{background:none;border:none;font-size:11px;color:var(--blue);margin-top:6px;padding:0;cursor:pointer}
 .ws-items{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:12px;font-weight:500;transition:all .15s;white-space:nowrap;cursor:pointer}
@@ -167,6 +170,13 @@ tr:hover td{background:var(--surface2)}
 @media(max-width:1100px){.metric-grid,.ws-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}}
 
 
+/* ── ITEM DETAIL POPUP ── */
+#item-popup{display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(3px)}
+#item-popup.open{display:flex}
+#item-popup-inner{background:var(--surface);border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.2);width:min(480px,92vw);overflow:hidden}
+#item-popup-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+#item-popup-body{padding:16px 20px}
+#item-popup-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
 /* ── ITEM TOOLTIP ── */
 #iid-tooltip{
   position:fixed;z-index:9999;pointer-events:none;
@@ -236,14 +246,31 @@ tr:hover td{background:var(--surface2)}
     left:0!important;right:0!important;width:100%!important;
     max-height:60vh;border-radius:14px 14px 0 0;z-index:200}
 }
+
+/* ── CHAT ── */
 </style>
 </head>
 <body>
 <div id="iid-tooltip"></div>
+<div id="item-popup" onclick="if(event.target===this)closeItemPopup()">
+  <div id="item-popup-inner">
+    <div id="item-popup-header">
+      <div style="flex:1">
+        <div id="item-popup-type" style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px"></div>
+        <div id="item-popup-title" style="font-size:15px;font-weight:700;color:var(--text);line-height:1.4"></div>
+      </div>
+      <button onclick="closeItemPopup()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);padding:0;line-height:1;flex-shrink:0">✕</button>
+    </div>
+    <div id="item-popup-body"></div>
+    <div id="item-popup-footer">
+      <button id="item-popup-ado" class="btn btn-primary" onclick="closeItemPopup()" style="font-size:12px">Open in ADO ↗</button>
+    </div>
+  </div>
+</div>
 <!-- MOBILE TOP BAR -->
 <div class="mob-bar">
   <button class="mob-bar-btn" onclick="openNav()" aria-label="Menu">☰</button>
-  <span class="mob-bar-title">T2E Project Hub</span>
+  <span class="mob-bar-title">New Time2Eat Migration Project</span>
   <button class="mob-bar-btn" onclick="quickSync()" aria-label="Sync">🔄</button>
 </div>
 <div class="nav-overlay" id="nav-overlay" onclick="closeNav()"></div>
@@ -252,8 +279,7 @@ tr:hover td{background:var(--surface2)}
 <!-- NAV -->
 <nav class="nav" id="nav">
   <div class="nav-logo">
-    <h1>T2E Project Hub</h1>
-    <p>New Time2Eat Migration</p>
+    <h1 id="nav-greeting">👋 Welcome</h1>
   </div>
   <div class="nav-section">Navigation</div>
   <button class="nav-item active" id="nv-overview" onclick="setTab('overview')"><span class="icon">📊</span>Overview</button>
@@ -263,6 +289,9 @@ tr:hover td{background:var(--surface2)}
   <button class="nav-item" id="nav-sync-action" onclick="quickSync()" style="margin-top:4px;border:1px solid var(--border2);font-weight:600"><span class="icon" id="nav-sync-icon2">↻</span><span id="nav-sync-label2">Sync Now</span></button>
   <div class="sync-info" id="sync-info" style="padding:4px 12px;font-size:10px;color:#475569">Not connected</div>
   <div class="nav-section" style="margin-top:8px">Team</div>
+  <div style="padding:4px 8px 4px">
+    <input id="team-search-inp" placeholder="Search team…" value="" oninput="G.teamSearch=this.value;buildNav()" style="width:100%;box-sizing:border-box;padding:4px 8px;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:11px;outline:none;placeholder-color:#94a3b8">
+  </div>
   <div id="nav-team"></div>
   <div class="nav-bottom">
   </div>
@@ -310,7 +339,7 @@ let G = {
   // ADO connection config — persisted in storage
   adoCfg: { orgUrl:"https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite", project:"Gartner - SQ Transformation", pat:"", epicId:5276 },
   rememberPat: false,
-  waFilter: {owner:"All"},
+  waFilter: {owner:"All", dateFrom:"", dateTo:""},
   currentUser: null,
   tab: "overview",
   expandedWS: {},
@@ -324,6 +353,8 @@ let G = {
   newAI: {text:"",owner:"",due:""},
   allSort: {col:"target",dir:1},
   ownerPageShowDone: {},
+  teamSearch: "",
+  ownerSearch: "",
   ganttFilter: {state:[], owner:[], type:[]},
 };
 
@@ -447,7 +478,10 @@ function buildNav(){
     const oa=items.filter(i=>i.owner===a&&urgency(i)==="overdue").length;
     const ob=items.filter(i=>i.owner===b&&urgency(i)==="overdue").length;
     return ob-oa||a.localeCompare(b);
-  });
+  }).filter(o=>!G.teamSearch||o.toLowerCase().includes(G.teamSearch.toLowerCase()));
+  // Restore search input value after render
+  const teamInp = document.getElementById('team-search-inp');
+  if(teamInp && document.activeElement!==teamInp) teamInp.value = G.teamSearch;
 
   const teamEl = document.getElementById("nav-team");
   teamEl.innerHTML = ownerList.map(owner=>{
@@ -466,6 +500,8 @@ function buildNav(){
     </button>`;
   }).join("");
 
+  const gr = document.getElementById("nav-greeting");
+  if(gr) gr.textContent = G.currentUser ? '👋 Hello, ' + G.currentUser : '👋 Welcome';
   const si = document.getElementById("sync-info");
   if(si) si.innerHTML = G.connected
     ? (G.lastSync ? `Synced ${fmtDateFull(G.lastSync)}` : `Connected · loading…`)
@@ -590,22 +626,23 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
 
   // Feature/Story/Task rows
   hierarchy.forEach(ws=>{
-    const isExpF = G.expandedWS[ws.ws] === true; // default collapsed
+    const gf = G.ganttFilter;
+    const filterActive = gf.state.length>0 || gf.owner.length>0 || gf.type.length>0;
+    const isExpF = G.expandedWS[ws.ws] === false ? false : (filterActive || G.expandedWS[ws.ws] === true);
     const wsc = WS_COLORS[ws.ws];
     const fLeft = tlPct(ws.feature.start), fW = tlW(ws.feature.start, ws.feature.target);
     const allChildren = ws.stories.flatMap(s=>[s.story,...s.tasks]);
     const closedPct = allChildren.length ? allChildren.filter(i=>i.state==="Closed").length/allChildren.length*100 : 0;
 
     html += `<div class="row-feat" onclick="toggleWS('${ws.ws}')">
-      <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#f8fafc">
-        <span style="font-size:10px;color:var(--text3);width:14px;text-align:center">${isExpF?"▼":"▶"}</span>
+      <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#f8fafc;border-left:3px solid ${wsc}">
+        <span style="font-size:10px;color:var(--text3);width:14px;text-align:center;flex-shrink:0">${isExpF?"▼":"▶"}</span>
         <span style="width:9px;height:9px;border-radius:2px;background:${wsc};flex-shrink:0"></span>
-        <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${ws.feature.title}">${ws.feature.title}</span>
-        <span style="font-size:10px;color:var(--text3);flex-shrink:0">${ws.ws}</span>
+        <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text)" title="Feature: ${ws.feature.title}">${ws.feature.title}</span>
       </div>
       <div class="time-cell" style="background:#f8fafc">
         ${gridLines}${todayLine}${goliveLine}
-        <div title="${ws.feature.title} · ${Math.round(closedPct)}% complete" style="position:absolute;left:${fLeft}%;width:${fW}%;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;background:${barColor(ws.feature)};opacity:0.25;min-width:4px">
+        <div title="${ws.feature.title}&#10;${ws.feature.start?fmtDate(ws.feature.start):'No start'} → ${ws.feature.target?fmtDate(ws.feature.target):'No end'}&#10;${Math.round(closedPct)}% complete · ${ws.feature.state}" style="position:absolute;left:${fLeft}%;width:${fW}%;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;background:${barColor(ws.feature)};opacity:0.25;min-width:4px">
           <div style="position:absolute;left:0;top:0;bottom:0;width:${closedPct}%;background:${barColor(ws.feature)};border-radius:6px;opacity:4"></div>
         </div>
       </div>
@@ -613,21 +650,22 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
 
     if(isExpF){
       ws.stories.forEach(us=>{
-        const isExpS = G.expandedStory[us.story.id] === true;
+        const isExpS = G.expandedStory[us.story.id] === false ? false : (filterActive || G.expandedStory[us.story.id] === true);
         const hasTasks = us.tasks.length>0;
         const sLeft=tlPct(us.story.start),sW=tlW(us.story.start,us.story.target);
         const bc=barColor(us.story);
         const op=barOpacity(us.story);
 
         html += `<div class="row-story" style="cursor:${hasTasks?"pointer":"default"}" onclick="${hasTasks?"toggleStory("+us.story.id+")":"void(0)"}">
-          <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px">
-            <span style="width:14px;font-size:10px;color:var(--text3);text-align:center">${hasTasks?(isExpS?"▼":"▶"):"<span style='opacity:.3'>—</span>"}</span>
-            <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${us.story.title}">${us.story.title}</span>
-            ${hasTasks?`<span style="font-size:10px;color:var(--text3)">${us.tasks.length}t</span>`:""}
+          <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;padding-left:18px;border-left:3px solid ${wsc}44">
+            <span style="width:14px;font-size:10px;color:var(--text3);text-align:center;flex-shrink:0">${hasTasks?(isExpS?"▼":"▶"):"<span style='opacity:.3'>—</span>"}</span>
+            <span style="width:7px;height:7px;border-radius:50%;background:${bc};opacity:${op};flex-shrink:0"></span>
+            <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text2)" title="User Story: ${us.story.title}">${us.story.title}</span>
+            ${hasTasks?`<span style="font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px">${us.tasks.length} tasks</span>`:""}
           </div>
           <div class="time-cell">
             ${gridLines}${todayLine}${goliveLine}
-            <div title="#${us.story.id} · ${us.story.owner} · ${us.story.state}" style="position:absolute;left:${sLeft}%;width:${sW}%;top:50%;transform:translateY(-50%);height:8px;border-radius:4px;background:${bc};opacity:${op};min-width:3px"></div>
+            <div title="${us.story.title}&#10;${us.story.start?fmtDate(us.story.start):'No start'} → ${us.story.target?fmtDate(us.story.target):'No end'}&#10;${us.story.owner} · ${us.story.state}" style="position:absolute;left:${sLeft}%;width:${sW}%;top:50%;transform:translateY(-50%);height:8px;border-radius:4px;background:${bc};opacity:${op};min-width:3px"></div>
           </div>
         </div>`;
 
@@ -636,15 +674,14 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
             const tLeft=tlPct(task.start),tW=tlW(task.start,task.target);
             const tbc=barColor(task),tOp=barOpacity(task);
             html += `<div class="row-task">
-              <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#fafbfd">
-                <span style="width:14px;text-align:center;font-size:10px;color:var(--text3)">·</span>
-                <span style="width:7px;height:7px;border-radius:1px;background:${tbc};opacity:${tOp};flex-shrink:0"></span>
-                <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text2)" title="#${task.id} · ${task.owner} · ${task.title}">${task.title}</span>
-                <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">${task.owner[0]}</span>
+              <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#fafbfd;padding-left:34px;border-left:3px solid ${wsc}22">
+                <span style="width:5px;height:5px;border-radius:50%;background:${tbc};opacity:${tOp};flex-shrink:0;margin-right:4px"></span>
+                <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text3)" title="Task: #${task.id} · ${task.owner} · ${task.title}">${task.title}</span>
+                <span style="font-size:9px;color:var(--text3);font-family:var(--mono);opacity:.6">${task.owner[0]}</span>
               </div>
               <div class="time-cell" style="background:#fafbfd">
                 ${gridLines}${todayLine}${goliveLine}
-                <div title="${task.title} · ${task.state}" style="position:absolute;left:${tLeft}%;width:${tW}%;top:50%;transform:translateY(-50%);height:6px;border-radius:3px;background:${tbc};opacity:${tOp};min-width:3px"></div>
+                <div title="${task.title}&#10;${task.start?fmtDate(task.start):'No start'} → ${task.target?fmtDate(task.target):'No end'}&#10;${task.owner} · ${task.state}" style="position:absolute;left:${tLeft}%;width:${tW}%;top:50%;transform:translateY(-50%);height:6px;border-radius:3px;background:${tbc};opacity:${tOp};min-width:3px"></div>
               </div>
             </div>`;
           });
@@ -658,11 +695,15 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
 }
 
 function toggleWS(ws){
-  G.expandedWS[ws] = G.expandedWS[ws] === true ? false : true;
+  if(G.expandedWS[ws] === undefined) G.expandedWS[ws] = true;
+  else if(G.expandedWS[ws] === true)  G.expandedWS[ws] = false;
+  else                                  delete G.expandedWS[ws];
   render();
 }
 function toggleStory(id){
-  G.expandedStory[id] = !G.expandedStory[id];
+  if(G.expandedStory[id] === undefined) G.expandedStory[id] = true;
+  else if(G.expandedStory[id] === true)  G.expandedStory[id] = false;
+  else                                    delete G.expandedStory[id];
   render();
 }
 
@@ -697,10 +738,11 @@ function itemRowHTML(it, showWS=false){
   const dtLabel = it.state==="Closed" ? fmtDate(it.target) : u==="overdue" ? `${Math.abs(d)}d overdue` : u==="thisweek" ? `Due ${fmtDate(it.target)}` : fmtDate(it.target);
   const dtCls = u==="overdue" ? "idt red" : u==="thisweek" ? "idt amb" : "idt";
   const adoHref = adoUrl(it.id);
-  return `<div class="item-row ${u==="overdue"?"overdue":u==="thisweek"?"thisweek":""}" style="cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoHref}','_blank')">
+  const safeTitle = it.title.replace(/'/g,"\\'");
+  return `<div class="item-row ${u==="overdue"?"overdue":u==="thisweek"?"thisweek":""}" style="cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON'&&!event.target.closest('.iid'))showItemPopup('${it.id}','${it.type||"Work Item"}','${safeTitle}','${it.owner}','${it.state}','${it.start||"—"}','${it.target||"—"}','${it.ws}','${(it.description||'').replace(/'/g,"'")}')">
     <a class="iid" href="${adoHref}" target="_blank" rel="noopener" style="cursor:pointer;text-decoration:none;color:inherit" onmouseenter="showIidTip(event,this)" onmouseleave="hideIidTip()" data-id="${it.id}" data-type="${it.type||'Work Item'}" data-title="${it.title.replace(/"/g,'&quot;')}" data-owner="${it.owner}" data-state="${it.state}" data-start="${it.start||'—'}" data-target="${it.target||'—'}" data-ws="${it.ws}">#${it.id}</a>
     <span class="ititle" style="padding-left:${(it.level-2)*10}px" title="${it.title}">
-      ${showWS?`<span class="badge badge-gray" style="margin-right:4px;font-size:9px">${it.ws}</span>`:""}${it.title}
+      ${it.title}
     </span>
     <span class="iowner">${it.owner}</span>
     <span class="${dtCls}">${dtLabel}</span>
@@ -783,6 +825,20 @@ function _filterSearch(ns, val, inputId){
     if(inp2){ inp2.focus(); inp2.setSelectionRange(pos, pos); }
   });
 }
+window.ownerPageSearch = function(val){
+  G.ownerSearch=val;
+  var mc=document.getElementById('main-content');
+  var scrollY=mc?mc.scrollTop:0;
+  var inp=document.getElementById('owner-page-search');
+  var pos=inp?inp.selectionStart:val.length;
+  render();
+  requestAnimationFrame(function(){
+    var mc2=document.getElementById('main-content');
+    if(mc2) mc2.scrollTop=scrollY;
+    var inp2=document.getElementById('owner-page-search');
+    if(inp2){inp2.focus();inp2.setSelectionRange(pos,pos);}
+  });
+};
 var _odTimer=null, _twTimer=null;
 window.odSearch = function(val){ clearTimeout(_odTimer); _odTimer=setTimeout(function(){ _filterSearch('od',val,'od-search-inp'); },120); };
 window.twSearch = function(val){ clearTimeout(_twTimer); _twTimer=setTimeout(function(){ _filterSearch('tw',val,'tw-search-inp'); },120); };
@@ -790,6 +846,66 @@ window.toggleWS = toggleWS;
 window.toggleStory = toggleStory;
 window.openNav  = function(){ document.getElementById('nav').classList.add('open'); document.getElementById('nav-overlay').classList.add('open'); };
 window.closeNav = function(){ var n=document.getElementById('nav'); var o=document.getElementById('nav-overlay'); if(n)n.classList.remove('open'); if(o)o.classList.remove('open'); };
+window.closeItemPopup = function(){
+  document.getElementById('item-popup').classList.remove('open');
+};
+window.showItemPopup = function(id,type,title,owner,state,start,target,ws,description){
+  document.getElementById('item-popup-type').textContent = type + ' · ' + ws;
+  document.getElementById('item-popup-title').textContent = title;
+  var body = '';
+  var rows = [{l:'Owner',v:owner},{l:'State',v:state},{l:'Start',v:start},{l:'Target',v:target}];
+  rows.forEach(function(r){
+    body += '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">';
+    body += '<span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;min-width:56px">'+r.l+'</span>';
+    body += '<span style="font-size:13px;color:var(--text)">'+r.v+'</span>';
+    body += '</div>';
+  });
+  if(description && description.trim()){
+    body += '<div style="padding:10px 0;border-top:1px solid var(--border);margin-top:4px">';
+    body += '<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Description</div>';
+    body += '<div style="font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap">'+description+'</div>';
+    body += '</div>';
+  }
+  document.getElementById('item-popup-body').innerHTML = body;
+  var adoBtn = document.getElementById('item-popup-ado');
+  var url = (function(){ var c=G.adoCfg; return c.orgUrl&&c.project?c.orgUrl.replace(/\/+$/,'')+'/'+c.project+'/_workitems/edit/'+id:''; })();
+  adoBtn.onclick = function(){ window.open(url,'_blank'); closeItemPopup(); };
+  document.getElementById('item-popup').classList.add('open');
+  // Fetch comments on demand
+  var commentsEl = document.getElementById('item-popup-body');
+  var commDiv = '<div id="popup-comments" style="padding:10px 0;border-top:1px solid var(--border);margin-top:4px">'
+    +'<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Comments</div>'
+    +'<div style="font-size:12px;color:var(--text3);font-style:italic">Loading...</div>'
+    +'</div>';
+  commentsEl.innerHTML += commDiv;
+  (async function(){
+    try{
+      var c = G.adoCfg;
+      var url = c.orgUrl.replace(/\/+$/,'') + '/' + c.project + '/_apis/wit/workitems/' + id + '/comments?api-version=7.0-preview.3';
+      var data = await adoFetch(url, c.pat);
+      var el = document.getElementById('popup-comments');
+      if(!el) return;
+      var comments = (data.comments||[]).slice(-5).reverse();
+      if(!comments.length){
+        el.querySelector('div:last-child').textContent = 'No comments.';
+        return;
+      }
+      var html = comments.map(function(c){
+        var author = c.createdBy && c.createdBy.displayName ? c.createdBy.displayName : 'Unknown';
+        var date = c.createdDate ? new Date(c.createdDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
+        var text = (c.text||'').replace(/<[^>]*>/g,'').trim();
+        return '<div style="margin-bottom:10px">'
+          +'<div style="font-size:11px;font-weight:600;color:var(--text2)">'+author+' <span style="font-weight:400;color:var(--text3)">'+date+'</span></div>'
+          +'<div style="font-size:12px;color:var(--text);margin-top:3px;line-height:1.5">'+text+'</div>'
+          +'</div>';
+      }).join('');
+      el.querySelector('div:last-child').innerHTML = html;
+    } catch(e){
+      var el = document.getElementById('popup-comments');
+      if(el) el.querySelector('div:last-child').textContent = 'Could not load comments.';
+    }
+  })();
+};
 window.toggleWsCard = (ws)=>{ G.expandedWS["card_"+ws]=!G.expandedWS["card_"+ws]; render(); };
 
 // ── ITEM ID TOOLTIP ──
@@ -853,27 +969,36 @@ function renderOverview(){
     return {ws,...WS_META[ws],total:its.length,closed:c,overdue:od,inprog:ip,pct:its.length?Math.round(c/its.length*100):0,items:its};
   });
 
-  let html = `<div style="margin-bottom:20px">
-    <h2 style="font-size:18px;font-weight:600">Project Overview</h2>
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <h2 style="font-size:18px;font-weight:600">New Time2Eat Migration Project</h2>
+    <div style="text-align:right">
+      <div style="font-size:28px;font-weight:700;color:${pct>=70?"var(--green-t)":pct>=40?"var(--amber-t)":"var(--blue-t)"}">${pct}<span style="font-size:14px;font-weight:500;color:var(--text2)">%</span></div>
+      <div style="font-size:11px;color:var(--text2)">overall complete</div>
+      <div style="width:80px;height:4px;background:var(--border2);border-radius:2px;margin-top:4px;margin-left:auto">
+        <div style="height:100%;border-radius:2px;background:${pct>=70?"var(--green)":pct>=40?"var(--amber)":"var(--blue)"};width:${pct}%"></div>
+      </div>
+    </div>
   </div>
 
   <div class="metric-grid">
-    <div class="mc"><div class="mc-lbl">Total Items</div><div class="mc-val">${items.length}</div><div class="mc-sub">${pct}% complete</div>
+    <div class="mc" style="cursor:pointer" onclick="F.allState='All';F.allOwner='All';F.allQ='';setTab('all')" title="View all items" onmouseenter="this.style.boxShadow='0 0 0 2px var(--blue)'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">Total Items</div><div class="mc-val">${items.length}</div><div class="mc-sub">${pct}% complete</div>
       <div class="prog-bar" style="margin-top:8px"><div class="prog-fill" style="width:${pct}%;background:var(--green)"></div></div></div>
-    <div class="mc good"><div class="mc-lbl">Closed</div><div class="mc-val">${closed.length}</div><div class="mc-sub">of ${items.length} total</div></div>
-    <div class="mc ${overdue.length>0?"danger":""}"><div class="mc-lbl">⚠ Overdue</div><div class="mc-val">${overdue.length}</div><div class="mc-sub">need immediate action</div></div>
-    <div class="mc ${thisweek.length>0?"warn":""}"><div class="mc-lbl">⏰ Due this week</div><div class="mc-val">${thisweek.length}</div><div class="mc-sub">${inprog.length} in progress</div></div>
+    <div class="mc good" style="cursor:pointer" onclick="F.allState='Closed';F.allOwner='All';F.allQ='';setTab('all')" title="View closed items" onmouseenter="this.style.boxShadow='0 0 0 2px #10b981'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">Closed</div><div class="mc-val">${closed.length}</div><div class="mc-sub">of ${items.length} total</div></div>
+    <div class="mc ${overdue.length>0?"danger":""}" style="cursor:pointer" onclick="document.getElementById('ov-overdue')&&document.getElementById('ov-overdue').scrollIntoView({behavior:'smooth',block:'start'})" title="Scroll to overdue items" onmouseenter="this.style.boxShadow='0 0 0 2px #ef4444'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">⚠ Overdue</div><div class="mc-val">${overdue.length}</div><div class="mc-sub">need immediate action</div></div>
+    <div class="mc ${thisweek.length>0?"warn":""}" style="cursor:pointer" onclick="document.getElementById('ov-thisweek')&&document.getElementById('ov-thisweek').scrollIntoView({behavior:'smooth',block:'start'})" title="Scroll to due this week" onmouseenter="this.style.boxShadow='0 0 0 2px #f59e0b'" onmouseleave="this.style.boxShadow=''"><div class="mc-lbl">⏰ Due this week</div><div class="mc-val">${thisweek.length}</div><div class="mc-sub">${inprog.length} in progress</div></div>
   </div>`;
 
   // Gantt legend + multiselect filters
   const gf = G.ganttFilter;
   const ganttOwners = [...new Set(items.map(i=>i.owner))].sort();
   const ganttTypes  = [...new Set(items.map(i=>i.type).filter(Boolean))].sort();
-  const ganttItems  = items.filter(i=>
-    (gf.state.length===0 || gf.state.includes(i.state)) &&
-    (gf.owner.length===0 || gf.owner.includes(i.owner)) &&
-    (gf.type.length ===0 || gf.type.includes(i.type))
-  );
+  const ganttItems  = items.filter(i=>{
+    // Always include Features (level 2) so hierarchy structure is preserved
+    if(i.level===2) return true;
+    return (gf.state.length===0 || gf.state.includes(i.state)) &&
+           (gf.owner.length===0 || gf.owner.includes(i.owner)) &&
+           (gf.type.length ===0 || gf.type.includes(i.type));
+  });
   const hasFilter = gf.state.length>0 || gf.owner.length>0 || gf.type.length>0;
 
   // custom dropdown multiselect builder
@@ -961,7 +1086,7 @@ function renderOverview(){
           <span style="width:8px;height:8px;border-radius:2px;background:${WS_COLORS[ws.ws]};flex-shrink:0"></span>
           <div class="ws-name">${ws.name}</div>
         </div>
-        <div class="ws-sub">${ws.owner} · ${ws.total} items</div>
+        <div class="ws-sub">${ws.total} items &nbsp;·&nbsp; <strong>${ws.pct}%</strong> complete</div>
         <div class="prog-bar"><div class="prog-fill" style="width:${ws.pct}%;background:${WS_COLORS[ws.ws]}"></div></div>
         <div class="ws-counts">
           <span class="badge badge-green">${ws.closed} done</span>
@@ -969,14 +1094,14 @@ function renderOverview(){
           ${ws.overdue>0?`<span class="badge badge-red">${ws.overdue} overdue</span>`:""}
         </div>
         <button class="ws-expand" onclick="toggleWsCard('${ws.ws}')">${G.expandedWS["card_"+ws.ws]?"▲ hide items":"▼ show items"}</button>
-        ${G.expandedWS["card_"+ws.ws]?`<div class="ws-items scroll-area"><div class="item-list">${ws.items.sort((a,b)=>{const o={"Closed":4,"In Progress":1,"Active":1,"Yet to Start":3,"New":3};return(o[a.state]||5)-(o[b.state]||5);}).map(it=>itemRowHTML(it)).join("")}</div></div>`:""}
+        ${G.expandedWS["card_"+ws.ws]?`<div class="ws-items scroll-area"><style>.ws-iid-hide .iid{display:none!important}</style><div class="item-list ws-no-owner">${ws.items.sort((a,b)=>{const o={"Closed":4,"In Progress":1,"Active":1,"Yet to Start":3,"New":3};return(o[a.state]||5)-(o[b.state]||5);}).map(it=>itemRowHTML(it)).join("")}</div></div>`:""}
       </div>`).join("")}
     </div>
   </div>`;
 
   // Overdue
   if(overdue.length>0){
-    html += `<div class="card" style="margin-bottom:16px;border-color:#fecaca">
+    html += `<div id="ov-overdue" class="card" style="margin-bottom:16px;border-color:#fecaca">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div class="section-title" style="margin-top:0;margin-bottom:0">
           <span style="color:var(--red)">●</span> Overdue Items — action required
@@ -989,7 +1114,7 @@ function renderOverview(){
   }
 
   // Due this week
-  html += `<div class="card">
+  html += `<div id="ov-thisweek" class="card">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div class="section-title" style="margin-top:0;margin-bottom:0">
         Due This Week
@@ -1052,7 +1177,7 @@ function renderAll(){
           const dtLabel=it.state==="Closed"?fmtDate(it.target):u==="overdue"?`${Math.abs(d)}d overdue`:fmtDate(it.target);
           return `<tr style="background:${u==="overdue"?"#fff5f5":""};cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoUrl(it.id)}','_blank')">
             <td style="font-family:var(--mono);font-size:10px"><a href="${adoUrl(it.id)}" target="_blank" rel="noopener" style="color:var(--text3);text-decoration:none;cursor:pointer" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">#${it.id}</a></td>
-            <td><span class="badge badge-gray" style="font-size:9px">${it.ws}</span></td>
+            
             <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:${(it.level-2)*10+10}px">${it.title}</td>
             <td style="font-size:12px">${it.owner}</td>
             <td>${stateSelect(it.id,it.state,"allStateChange")}</td>
@@ -1074,12 +1199,13 @@ window.allStateChange=allStateChange; window.sortAll=sortAll;
 function renderOwner(owner){
   const items = effectiveItems();
   const mine    = items.filter(i=>i.owner===owner);
-  const closed  = mine.filter(i=>i.state==="Closed");
-  const overdue = mine.filter(i=>urgency(i)==="overdue").sort((a,b)=>dl(a.target)-dl(b.target));
-  const week    = mine.filter(i=>urgency(i)==="thisweek").sort((a,b)=>dl(a.target)-dl(b.target));
-  const active  = mine.filter(i=>["In Progress","Active"].includes(i.state)&&!["overdue","thisweek"].includes(urgency(i)));
-  const upcoming= mine.filter(i=>["Yet to Start","New"].includes(i.state)).sort((a,b)=>new Date(a.target)-new Date(b.target));
-  const pct     = mine.length ? Math.round(closed.length/mine.length*100) : 0;
+  const srch = it=>!G.ownerSearch||it.title.toLowerCase().includes(G.ownerSearch.toLowerCase());
+  const closed  = mine.filter(i=>i.state==="Closed"&&srch(i));
+  const overdue = mine.filter(i=>urgency(i)==="overdue"&&srch(i)).sort((a,b)=>dl(a.target)-dl(b.target));
+  const week    = mine.filter(i=>urgency(i)==="thisweek"&&srch(i)).sort((a,b)=>dl(a.target)-dl(b.target));
+  const active  = mine.filter(i=>["In Progress","Active"].includes(i.state)&&!["overdue","thisweek"].includes(urgency(i))&&srch(i));
+  const upcoming= mine.filter(i=>["Yet to Start","New"].includes(i.state)&&srch(i)).sort((a,b)=>new Date(a.target)-new Date(b.target));
+  const pct     = mine.length ? Math.round(mine.filter(i=>i.state==="Closed").length/mine.length*100) : 0;
   const meta    = ownerMeta(owner);
   const color   = meta.color;
   const showDone= G.ownerPageShowDone[owner];
@@ -1103,7 +1229,7 @@ function renderOwner(owner){
     return `<div class="urow" style="display:grid;grid-template-columns:42px 1fr 90px 120px;gap:8px;align-items:center;padding:8px 10px;border-radius:6px;transition:background .12s;cursor:pointer" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON')window.open('${adoUrl(it.id)}','_blank')">
       <a class="urow-id" href="${adoUrl(it.id)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--text3);text-decoration:none;cursor:pointer" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">#${it.id}</a>
       <span class="urow-title" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:${(it.level-2)*8}px">
-        <span class="badge badge-gray" style="font-size:9px;margin-right:4px">${it.ws}</span>${it.title}
+        ${it.title}
       </span>
       <span class="urow-date ${dtCls}" style="font-family:var(--mono);font-size:11px">${dtLabel}</span>
       <span class="urow-state">${stateSelect(it.id,it.state,"ownerStateChange")}</span>
@@ -1181,6 +1307,10 @@ function renderOwner(owner){
     <div class="mc ${overdue.length>0?"danger":"good"}"><div class="mc-lbl">Closed</div><div class="mc-val">${closed.length}</div><div class="mc-sub">${pct}% done</div></div>
     <div class="mc ${overdue.length>0?"danger":""}"><div class="mc-lbl">⚠ Overdue</div><div class="mc-val">${overdue.length}</div><div class="mc-sub">${overdue.length===0?"All on track":"need action"}</div></div>
     <div class="mc ${week.length>0?"warn":""}"><div class="mc-lbl">⏰ Due this week</div><div class="mc-val">${week.length}</div><div class="mc-sub">${active.length} in progress</div></div>
+  </div>
+
+  <div style="margin-bottom:12px">
+    <input id="owner-page-search" class="inp" placeholder="Search items\u2026" value="${G.ownerSearch}" oninput="ownerPageSearch(this.value)" style="width:100%;max-width:320px">
   </div>
 
   ${mine.length>0?gantt:""}
@@ -1338,7 +1468,9 @@ function mapAdoItems(rawItems, rootEpicId){
       ws:       featureWs.get(item.id) || resolveWs(item),
       level:    typeLevel[f['System.WorkItemType']] ?? 3,
       type:     f['System.WorkItemType'] || 'Task',
-      parentId: f['System.Parent'] || null,
+      parentId:    f['System.Parent'] || null,
+      changedDate:  (f['System.ChangedDate']||'').slice(0,10),
+      description: (f['System.Description']||'').replace(/<[^>]*>/g,'').trim(),
     });
   }
   // Sort: features first (by ws index), then children sorted by parent ws then level then id
@@ -1399,7 +1531,7 @@ async function doSync(){
 
     // 3. Batch-fetch work items (200 per request)
     const idArr = [...ids];
-    const FIELDS = 'System.Id,System.Title,System.State,System.WorkItemType,System.AssignedTo,System.Parent,Microsoft.VSTS.Scheduling.StartDate,Microsoft.VSTS.Scheduling.FinishDate,Microsoft.VSTS.Scheduling.TargetDate';
+    const FIELDS = 'System.Id,System.Title,System.State,System.WorkItemType,System.AssignedTo,System.Parent,Microsoft.VSTS.Scheduling.StartDate,Microsoft.VSTS.Scheduling.FinishDate,Microsoft.VSTS.Scheduling.TargetDate,System.ChangedDate,System.Description';
     let raw = [];
     for(let i=0;i<idArr.length;i+=200){
       const chunk = idArr.slice(i,i+200);
@@ -1425,6 +1557,7 @@ async function doSync(){
     G.syncError = e.message;
   }
   G.syncing=false; render();
+
 }
 
 async function doDisconnect(){
@@ -1522,20 +1655,30 @@ function renderWeeklyAnalysis(){
   const allOwners = [...new Set(items.map(i=>i.owner))].sort();
 
   // Last week: target within past 7 days AND closed
-  const lastWeekStart = new Date(now - 7*dayMs);
+  // Last week: Mon–Sun
+  const _todayDow = now.getDay()===0?6:now.getDay()-1;
+  const _thisMon  = new Date(now.getFullYear(),now.getMonth(),now.getDate()-_todayDow,0,0,0);
+  const _lastMon  = new Date(_thisMon.getFullYear(),_thisMon.getMonth(),_thisMon.getDate()-7,0,0,0);
+  const _lastSun  = new Date(_thisMon.getFullYear(),_thisMon.getMonth(),_thisMon.getDate()-1,23,59,59);
+  const lastWeekStart = _lastMon;
   const completedLastWeek = items.filter(i=>{
     if(i.state!=="Closed") return false;
-    const t = i.target ? new Date(i.target) : null;
-    if(!t || t < lastWeekStart || t > now) return false;
+    const t = i.changedDate ? new Date(i.changedDate) : null;
+    if(!t || t < lastWeekStart || t > _lastSun) return false;
     return waf.owner==="All" || i.owner===waf.owner;
-  }).sort((a,b)=>new Date(b.target)-new Date(a.target));
+  }).sort((a,b)=>new Date(b.changedDate)-new Date(a.changedDate));
 
-  // Upcoming: open items with target in next 7 days
-  const nextWeekEnd = new Date(now.getTime() + 7*dayMs);
+  // Upcoming: default Mon–Sun of next week (local dates, no UTC shift)
+  const _dow = now.getDay()===0?6:now.getDay()-1;
+  const _nextMon = new Date(now.getFullYear(),now.getMonth(),now.getDate()+(7-_dow),0,0,0);
+  const _nextSun = new Date(_nextMon.getFullYear(),_nextMon.getMonth(),_nextMon.getDate()+6,23,59,59);
+  const upcomingStart = waf.dateFrom ? new Date(waf.dateFrom) : _nextMon;
+  const nextWeekEnd   = waf.dateTo   ? new Date(waf.dateTo)   : _nextSun;
+  const weekOffset = 0;
   const upcomingNextWeek = items.filter(i=>{
     if(i.state==="Closed") return false;
     const t = i.target ? new Date(i.target) : null;
-    if(!t || t < now || t > nextWeekEnd) return false;
+    if(!t || t < upcomingStart || t > nextWeekEnd) return false;
     return waf.owner==="All" || i.owner===waf.owner;
   }).sort((a,b)=>new Date(a.target)-new Date(b.target));
 
@@ -1546,11 +1689,14 @@ function renderWeeklyAnalysis(){
     return Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   }
 
-  const completedByWS = groupByWS(completedLastWeek);
+  // Show changedDate as the display date for completed items
+  const completedMapped = completedLastWeek.map(i=>Object.assign({},i,{target:i.changedDate||i.target}));
+  const completedByWS = groupByWS(completedMapped);
   const upcomingByWS  = groupByWS(upcomingNextWeek);
 
-  const weekLabel = `${lastWeekStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
-  const nextLabel = `${now.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${nextWeekEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  const weekLabel = `${_lastMon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${_lastSun.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  const nextLabel = `${upcomingStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${nextWeekEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  const nextTitle = 'Upcoming Items';
 
   function wsSection(groups, emptyMsg){
     if(groups.length===0) return `<div class="empty-state">${emptyMsg}</div>`;
@@ -1565,6 +1711,15 @@ function renderWeeklyAnalysis(){
       </div>`).join("");
   }
 
+  // Status changes last week: changedDate in past 7 days, not Closed
+  const changedLastWeek = items.filter(i=>{
+    if(i.state==="Closed") return false;
+    const t = i.changedDate ? new Date(i.changedDate) : null;
+    if(!t || t < lastWeekStart || t > _lastSun) return false;
+    return waf.owner==="All" || i.owner===waf.owner;
+  }).sort((a,b)=>new Date(b.changedDate)-new Date(a.changedDate));
+  const changedByWS = groupByWS(changedLastWeek);
+
   const isFiltered = waf.owner!=="All";
 
   return `<div class="page-header"><h2>Weekly Analysis</h2><p>A snapshot of last week's progress and what's coming up</p></div>
@@ -1576,7 +1731,21 @@ function renderWeeklyAnalysis(){
       <option value="All"${waf.owner==="All"?" selected":""}>All</option>
       ${allOwners.map(o=>`<option value="${o}"${waf.owner===o?" selected":""}>${o}</option>`).join("")}
     </select>
-    ${isFiltered?`<button onclick="G.waFilter={owner:'All'};render()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">clear</button>`:""}
+    ${isFiltered?`<button onclick="G.waFilter.owner='All';render()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">clear</button>`:""}
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="G.waFilter.scExpanded=!G.waFilter.scExpanded;render()">
+      <div class="section-title" style="margin:0">🔄 Status Changes Last Week</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge badge-gray">${changedLastWeek.length} items</span>
+        <span style="font-size:11px;color:var(--text3)">${G.waFilter.scExpanded?"▲":"▼"}</span>
+      </div>
+    </div>
+    ${G.waFilter.scExpanded?`
+    <div style="font-size:11px;color:var(--text3);margin-top:10px;margin-bottom:12px">${weekLabel}</div>
+    ${wsSection(changedByWS,"No status changes recorded in the last 7 days")}
+    `:""}
   </div>
 
   <div class="two-col" style="gap:16px;align-items:start">
@@ -1587,17 +1756,22 @@ function renderWeeklyAnalysis(){
           <span class="badge badge-green">${completedLastWeek.length} items</span>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${weekLabel}</div>
-        ${wsSection(completedByWS,"Nothing was marked complete in the last 7 days")}
+        ${wsSection(completedByWS,"Nothing was completed last week")}
       </div>
     </div>
     <div>
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div class="section-title" style="margin:0">📅 Due Next 7 Days</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="section-title" style="margin:0">📅 ${nextTitle} <span style="font-size:11px;font-weight:400;color:var(--text3)">(${nextLabel})</span></div>
           <span class="badge badge-amber">${upcomingNextWeek.length} items</span>
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${nextLabel}</div>
-        ${wsSection(upcomingByWS,"Nothing is due in the next 7 days")}
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:11px;color:var(--text2)">From</label>
+          <input type="date" value="${(waf.dateFrom||(String(_nextMon.getFullYear())+'-'+String(_nextMon.getMonth()+1).padStart(2,'0')+'-'+String(_nextMon.getDate()).padStart(2,'0')))}" onchange="G.waFilter.dateFrom=this.value;render()" style="font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer">
+          <label style="font-size:11px;color:var(--text2)">To</label>
+          <input type="date" value="${(waf.dateTo||(String(_nextSun.getFullYear())+'-'+String(_nextSun.getMonth()+1).padStart(2,'0')+'-'+String(_nextSun.getDate()).padStart(2,'0')))}" onchange="G.waFilter.dateTo=this.value;render()" style="font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer">
+        </div>
+        ${wsSection(upcomingByWS,"Nothing due this week")}
       </div>
     </div>
   </div>`;
@@ -1647,6 +1821,7 @@ function render(){
   G.tab = 'sync';
   render();
 })();
+
 </script>
 </body>
 </html>
