@@ -270,6 +270,22 @@ tr:hover td{background:var(--surface2)}
 #whatsnew-box ul{margin:0 0 20px 0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
 #whatsnew-box li{font-size:13px;color:var(--text2);line-height:1.5}
 
+#nav-overdue-badge{display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:auto;line-height:1.6}
+#gs-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:none;align-items:flex-start;justify-content:center;padding-top:80px}
+#gs-overlay.open{display:flex}
+#gs-box{background:var(--surface);border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.25);width:560px;max-width:calc(100vw - 32px);overflow:hidden}
+#gs-input{width:100%;padding:16px 18px;font-size:16px;border:none;outline:none;background:transparent;color:var(--text);font-family:var(--font);border-bottom:1px solid var(--border)}
+#gs-input::placeholder{color:var(--text3)}
+#gs-results{max-height:400px;overflow-y:auto}
+.gs-item{padding:10px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.gs-item:hover,.gs-item.active{background:var(--surface2)}
+.gs-item-id{font-size:10px;font-family:var(--mono);color:var(--text3);flex-shrink:0;width:44px}
+.gs-item-title{font-size:13px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gs-item-meta{font-size:11px;color:var(--text3);flex-shrink:0}
+.gs-empty{padding:20px 18px;font-size:13px;color:var(--text3);text-align:center}
+.gs-hint{padding:10px 18px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);display:flex;gap:16px}
+
+
 </style>
 </head>
 <body>
@@ -304,17 +320,15 @@ tr:hover td{background:var(--surface2)}
     <h1 id="nav-greeting">👋 Welcome</h1>
   </div>
   <div class="nav-section">Navigation</div>
-  <button class="nav-item active" id="nv-overview" onclick="setTab('overview')"><span class="icon">📊</span>Overview</button>
+  <button class="nav-item active" id="nv-overview" onclick="setTab('overview')"><span class="icon">📊</span>Overview<span id="nav-overdue-badge"></span></button>
   <button class="nav-item" id="nv-all" onclick="setTab('all')"><span class="icon">📋</span>All Items</button>
   <button class="nav-item" id="nv-mytasks" onclick="setTab('mytasks')"><span class="icon">👤</span>My Tasks</button>
   <button class="nav-item" id="nv-weekly" onclick="setTab('weekly')"><span class="icon">📈</span>Weekly Analysis</button>
   <button class="nav-item" id="nv-exec" onclick="setTab('exec')" style="display:none"><span class="icon">📄</span>Executive Summary</button>
   <button class="nav-item" id="nav-sync-action" onclick="quickSync()" style="margin-top:4px;border:1px solid var(--border2);font-weight:600"><span class="icon" id="nav-sync-icon2">↻</span><span id="nav-sync-label2">Sync Now</span></button>
+  <button onclick="openGS()" style="margin:4px 8px 0;padding:6px 10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#94a3b8;font-size:11px;cursor:pointer;width:calc(100% - 16px);text-align:left;display:flex;align-items:center;gap:6px" title="Search (Ctrl+K)"><span>🔍</span><span>Search items...</span><span style="margin-left:auto;font-size:10px;opacity:.6">⌘K</span></button>
   <div class="sync-info" id="sync-info" style="padding:4px 12px;font-size:10px;color:#475569">Not connected</div>
   <div class="nav-section" style="margin-top:8px">Team</div>
-  <div style="padding:4px 8px 4px">
-    <input id="team-search-inp" placeholder="Search team…" value="" oninput="G.teamSearch=this.value;buildNav()" style="width:100%;box-sizing:border-box;padding:4px 8px;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:11px;outline:none;placeholder-color:#94a3b8">
-  </div>
   <div id="nav-team"></div>
   <div class="nav-bottom">
     <button onclick="doDisconnect()" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#94a3b8;font-size:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px" onmouseenter="this.style.background='rgba(255,255,255,.12)'" onmouseleave="this.style.background='rgba(255,255,255,.06)'"><span>&#x1F511;</span> Change PAT / Log out</button>
@@ -331,14 +345,34 @@ tr:hover td{background:var(--surface2)}
 // WS metadata — used as fallback display names; overwritten dynamically from ADO data
 // ── VERSION / CHANGELOG ──
 // Update APP_VERSION and add an entry to CHANGELOG to trigger the What's New popup.
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.4.0';
 const CHANGELOG = {
+  '1.4.0': [
+    'Overdue alert badge on Overview nav — shows count after each sync',
+    'Text alignment fixed across Overview, All Items, Weekly Analysis and team pages',
+    'Ask Atlas improvements — understands more natural project questions',
+  ],
+  '1.3.0': [
+    'What\'s New popup — shows release notes on version change',
+    'Collapsible sections in Overview (In Progress, Due This Week, Closed)',
+    'Change PAT / Log out button in nav',
+  ],
+  '1.2.0': [
+    'Executive Summary restricted to Sydon, MB and Dakshath',
+    'Ask Atlas chat restricted to same three users',
+    'Manual name entry for users without tasks',
+    'Upcoming items now shows start → end date range',
+  ],
+  '1.1.0': [
+    'Closed items section on Overview page',
+    'In Progress section on Overview page',
+    'Weekly Analysis This Week section with status filter',
+    'Gantt row hover tooltips',
+  ],
   '1.0.0': [
-    'Executive Summary tab (restricted to selected users)',
+    'Executive Summary tab',
     'Ask Atlas chat assistant',
     'Collapsible sections in Weekly Analysis',
-    'Closed items section on Overview page',
-    'Manual name entry for users without tasks',
   ],
 };
 
@@ -370,11 +404,15 @@ let G = {
   overrides: {},
   meetings: [],
   lastSync: null,
+  prevOverdueIds: [],
   syncing: false,
   syncError: null,
   connected: false,
   // ADO connection config — persisted in storage
-  adoCfg: { orgUrl:"https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite", project:"Gartner - SQ Transformation", pat:"", epicId:5276 },
+  adoCfg: { orgUrl:"https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite", project:"Gartner - SQ Transformation", pat:"", epicId:5276, epicIds:[5276] },
+  availableEpics: [],
+  epicsLoaded: false,
+  connectStep: 1,
   rememberPat: false,
   waFilter: {owner:"All", dateFrom:"", dateTo:"", twState:"All"},
   currentUser: null,
@@ -1419,8 +1457,9 @@ window.ownerStateChange=ownerStateChange; window.toggleOwnerDone=toggleOwnerDone
 function renderSync(){
   const cfg = G.adoCfg;
   if(!G.connected){
-    return `<div class="page-header"><h2>Connect to Azure DevOps</h2><p>Enter your ADO details to load live work items</p></div>
-    <div class="card" style="max-width:520px">
+    // Step 1: credentials
+    if(G.connectStep===1) return `<div class="page-header"><h2>Connect to Azure DevOps</h2><p>Step 1 of 2 — Enter your credentials</p></div>
+    <div class="card" style="max-width:480px">
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px">Organisation URL</label>
         <input class="inp" id="ado-org" placeholder="https://dev.azure.com/yourorg" value="${cfg.orgUrl||'https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite'}">
@@ -1429,21 +1468,43 @@ function renderSync(){
         <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px">Project Name</label>
         <input class="inp" id="ado-proj" placeholder="e.g. SmartQ-T2E" value="${cfg.project||'Gartner - SQ Transformation'}">
       </div>
-      <div style="margin-bottom:10px">
+      <div style="margin-bottom:14px">
         <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px">Personal Access Token <span style="color:var(--text3)">(Work Items → Read)</span></label>
-        <input class="inp" id="ado-pat" type="password" placeholder="PAT" value="${cfg.pat}">
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px">Root Epic ID</label>
-        <input class="inp" id="ado-epic" placeholder="5276" value="${cfg.epicId||5276}" style="width:120px">
+        <input class="inp" id="ado-pat" type="password" placeholder="PAT" value="${cfg.pat}" onkeydown="if(event.key==='Enter')goToEpicPicker()">
       </div>
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:14px">
         <input type="checkbox" id="ado-remember" ${G.rememberPat?"checked":""} style="accent-color:var(--blue);width:13px;height:13px;cursor:pointer">
         <label for="ado-remember" style="font-size:12px;color:var(--text2);cursor:pointer;user-select:none">Remember PAT on this device</label>
       </div>
-      <button class="btn btn-primary" onclick="doConnect()" style="min-width:160px">
-        ${G.syncing?'<span class="spin">↻</span> Connecting…':'Connect &amp; Load'}
+      <button class="btn btn-primary" onclick="goToEpicPicker()" style="min-width:160px">
+        ${G.syncing?'<span class="spin">↻</span> Verifying…':'Next — Select Epics →'}
       </button>
+      ${G.syncError?`<div class="alert alert-red" style="margin-top:10px">✕ ${G.syncError}</div>`:''}
+    </div>`;
+    // Step 2: epic picker
+    return `<div class="page-header"><h2>Select Epics</h2><p>Step 2 of 2 — Choose which epics to sync</p></div>
+    <div class="card" style="max-width:480px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${G.availableEpics.length} epic${G.availableEpics.length!==1?"s":""} found</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" style="font-size:11px;padding:3px 8px" onclick="G.adoCfg.epicIds=G.availableEpics.map(e=>e.id);render()">All</button>
+          <button class="btn" style="font-size:11px;padding:3px 8px" onclick="G.adoCfg.epicIds=[];render()">None</button>
+        </div>
+      </div>
+      <div style="border:1px solid var(--border2);border-radius:8px;max-height:260px;overflow-y:auto;background:var(--surface2);margin-bottom:12px">
+        ${G.availableEpics.map(e=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background=''">
+          <input type="checkbox" value="${e.id}" ${(cfg.epicIds||[]).includes(e.id)?"checked":""} onchange="toggleEpic(${e.id})" style="accent-color:var(--blue);cursor:pointer;flex-shrink:0">
+          <span style="flex:1;font-size:13px;color:var(--text)">${e.title}</span>
+          <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">#${e.id}</span>
+        </label>`).join("")}
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px">${(cfg.epicIds||[]).length} of ${G.availableEpics.length} epics selected</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="G.connectStep=1;G.syncError=null;render()">← Back</button>
+        <button class="btn btn-primary" onclick="doConnect()" style="flex:1" ${!(cfg.epicIds||[]).length?"disabled":""}>
+          ${G.syncing?'<span class="spin">↻</span> Loading data…':'Load Data →'}
+        </button>
+      </div>
       ${G.syncError?`<div class="alert alert-red" style="margin-top:10px">✕ ${G.syncError}</div>`:''}
     </div>`;
   }
@@ -1574,10 +1635,11 @@ async function doConnect(){
   const org  = document.getElementById('ado-org')?.value.trim()  || '';
   const proj = document.getElementById('ado-proj')?.value.trim() || '';
   const pat  = document.getElementById('ado-pat')?.value.trim()  || '';
-  const epic = parseInt(document.getElementById('ado-epic')?.value||'5276',10)||5276;
+  G.connectStep=1;
+  const epic = G.adoCfg.epicIds&&G.adoCfg.epicIds.length ? G.adoCfg.epicIds[0] : 5276;
   const remember = document.getElementById('ado-remember')?.checked || false;
   if(!org||!proj||!pat){ G.syncError='Please fill in all fields.'; render(); return; }
-  G.adoCfg={orgUrl:org,project:proj,pat,epicId:epic};
+  G.adoCfg={orgUrl:org,project:proj,pat,epicId:epic,epicIds:G.adoCfg.epicIds&&G.adoCfg.epicIds.length?G.adoCfg.epicIds:[epic]};
   G.rememberPat = remember;
   if(remember){
     lsSet('t2e_remember_pat','1');
@@ -1593,16 +1655,20 @@ async function doSync(){
   if(G.syncing) return;
   G.syncing=true; G.syncError=null; render();
   try{
-    const {orgUrl,project,pat,epicId} = G.adoCfg;
+    const {orgUrl,project,pat,epicId,epicIds} = G.adoCfg;
     const base = orgUrl.replace(/\/+$/,'');
+    const allEpicIds = epicIds&&epicIds.length ? epicIds : [epicId];
 
     // 1. Test connection
     await adoFetch(`${base}/${project}/_apis/wit/workitemtypes?api-version=7.0`, pat);
 
-    // 2. Get all descendant IDs via recursive WIQL
-    const wiql = `SELECT [System.Id] FROM WorkItemLinks WHERE ([Source].[System.Id]=${epicId}) AND ([System.Links.LinkType]='System.LinkTypes.Hierarchy-Forward') MODE (Recursive)`;
-    const linkRes = await adoPost(`${base}/${project}/_apis/wit/wiql?api-version=7.0&$top=1000`, pat, {query:wiql});
-    const ids = new Set([epicId]);
+    // 2. Get all descendant IDs via recursive WIQL for all selected epics
+    const ids = new Set(allEpicIds);
+    for(const eid of allEpicIds){
+      const wiql = `SELECT [System.Id] FROM WorkItemLinks WHERE ([Source].[System.Id]=${eid}) AND ([System.Links.LinkType]='System.LinkTypes.Hierarchy-Forward') MODE (Recursive)`;
+      const linkRes = await adoPost(`${base}/${project}/_apis/wit/wiql?api-version=7.0&$top=1000`, pat, {query:wiql});
+      (linkRes.workItemRelations||[]).forEach(r=>{ if(r.target?.id) ids.add(r.target.id); });
+    }
     (linkRes.workItemRelations||[]).forEach(r=>{ if(r.target?.id) ids.add(r.target.id); });
 
     // 3. Batch-fetch work items (200 per request)
@@ -1637,6 +1703,7 @@ async function doSync(){
 }
 
 async function doDisconnect(){
+  G.connectStep=1; G.availableEpics=[]; G.epicsLoaded=false;
   G.connected=false; G.items=[]; G.lastSync=null; G.syncError=null;
   G.adoCfg={orgUrl:'https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite',project:'Gartner - SQ Transformation',pat:'',epicId:5276};
   G.rememberPat=false;
@@ -2009,6 +2076,183 @@ function renderExec(){
     +'<div style="font-size:11px;color:#9ca3af;text-align:center;padding-top:16px;border-top:1px solid #e5e7eb">This summary is auto-generated from live Azure DevOps data.</div>'
   +'</div>';
 }
+function updateOverdueBadge(total, newCount){
+  var badge = document.getElementById('nav-overdue-badge');
+  if(!badge) return;
+  if(total===0){ badge.style.display='none'; badge.title=''; return; }
+  badge.style.display='inline-block';
+  badge.textContent = total;
+  badge.title = newCount>0
+    ? newCount+' new overdue item'+(newCount>1?'s':'')+' since last sync!'
+    : total+' overdue item'+(total>1?'s':'');
+  badge.style.background = newCount>0 ? '#ef4444' : '#f97316';
+}
+// Show badge on page load from stored data
+(function(){
+  var po = lsGet('t2e_prev_overdue');
+  if(!po) return;
+  try{ var ids=JSON.parse(po); if(ids.length) updateOverdueBadge(ids.length,0); }catch(e){}
+})();
+
+// ── GLOBAL SEARCH ──
+var _gsActive = -1;
+var _gsResults = [];
+
+window.openGS = function(){
+  document.getElementById('gs-overlay').classList.add('open');
+  var inp = document.getElementById('gs-input');
+  inp.value = '';
+  inp.focus();
+  document.getElementById('gs-results').innerHTML = '<div class="gs-empty">Start typing to search all items...</div>';
+  _gsActive = -1; _gsResults = [];
+};
+window.closeGS = function(){
+  document.getElementById('gs-overlay').classList.remove('open');
+};
+
+window.gsSearch = function(q){
+  q = q.trim();
+  var resultsEl = document.getElementById('gs-results');
+  if(!q){ resultsEl.innerHTML='<div class="gs-empty">Start typing to search all items...</div>'; _gsResults=[]; return; }
+  var items = effectiveItems();
+  var ql = q.toLowerCase();
+  _gsResults = items.filter(function(i){
+    return String(i.id).indexOf(q)!==-1 ||
+      (i.title && i.title.toLowerCase().indexOf(ql)!==-1) ||
+      (i.owner && i.owner.toLowerCase().indexOf(ql)!==-1) ||
+      (i.ws && i.ws.toLowerCase().indexOf(ql)!==-1) ||
+      (i.state && i.state.toLowerCase().indexOf(ql)!==-1) ||
+      (WS_META[i.ws] && WS_META[i.ws].name && WS_META[i.ws].name.toLowerCase().indexOf(ql)!==-1);
+  }).slice(0,12);
+  if(!_gsResults.length){ resultsEl.innerHTML='<div class="gs-empty">No items found for "'+q+'"</div>'; return; }
+  resultsEl.innerHTML = _gsResults.map(function(it,idx){
+    var u = urgency(it);
+    var stateColor = it.state==='Closed'?'var(--green)':u==='overdue'?'var(--red)':u==='thisweek'?'var(--amber)':'var(--text3)';
+    var wsName = WS_META[it.ws]?WS_META[it.ws].name:it.ws||'';
+    return '<div class="gs-item" data-idx="'+idx+'" onclick="gsPick('+idx+')">'
+      +'<span class="gs-item-id">#'+it.id+'</span>'
+      +'<span class="gs-item-title">'+it.title+'</span>'
+      +'<span class="gs-item-meta" style="color:'+stateColor+'">'+it.state+'</span>'
+      +'<span class="gs-item-meta" style="margin-left:8px">'+it.owner+'</span>'
+    +'</div>';
+  }).join('');
+  _gsActive = -1;
+};
+
+window.gsPick = function(idx){
+  var it = _gsResults[idx];
+  if(!it) return;
+  closeGS();
+  showItemPopup(it.id, it.type||'Work Item', it.title, it.owner, it.state, it.start||'—', it.target||'—', it.ws, it.description||'');
+};
+
+window.gsKey = function(e){
+  var items = document.querySelectorAll('.gs-item');
+  if(e.key==='Escape'){closeGS();return;}
+  if(e.key==='ArrowDown'){_gsActive=Math.min(_gsActive+1,items.length-1);}
+  else if(e.key==='ArrowUp'){_gsActive=Math.max(_gsActive-1,0);}
+  else if(e.key==='Enter'){if(_gsActive>=0)gsPick(_gsActive);return;}
+  else return;
+  items.forEach(function(el,i){el.classList.toggle('active',i===_gsActive);});
+  if(items[_gsActive])items[_gsActive].scrollIntoView({block:'nearest'});
+  e.preventDefault();
+};
+
+// Keyboard shortcut: Cmd+K / Ctrl+K
+document.addEventListener('keydown',function(e){
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openGS();}
+  if(e.key==='Escape')closeGS();
+});
+
+
+window.loadAvailableEpics = async function(){
+  var org = document.getElementById('ado-org')?.value.trim();
+  var proj = document.getElementById('ado-proj')?.value.trim();
+  var pat  = document.getElementById('ado-pat')?.value.trim();
+  if(!org||!proj||!pat){alert('Please fill in the Org URL, Project and PAT first.');return;}
+  var el = document.getElementById('epic-list');
+  if(el) el.innerHTML='<div style="color:var(--text3);padding:8px">Loading epics...</div>';
+  try{
+    var base = org.replace(/\/+$/,'');
+    // Single WIQL call — get IDs + titles in one shot
+    var wiql = "SELECT [System.Id],[System.Title] FROM WorkItems WHERE [System.WorkItemType]='Epic' AND [System.TeamProject]='"+proj+"' AND [System.State]<>'Closed' ORDER BY [System.Id]";
+    var res = await adoPost(base+'/'+proj+'/_apis/wit/wiql?api-version=7.0&$top=200', pat, {query:wiql});
+    var epIds = (res.workItems||[]).map(function(w){return w.id;});
+    if(!epIds.length){G.availableEpics=[];G.epicsLoaded=true;render();return;}
+    // Show IDs immediately while titles load in background
+    var epics = epIds.map(function(id){return {id:id,title:'Epic #'+id};});
+    G.availableEpics=epics;
+    G.epicsLoaded=true;
+    if(!G.adoCfg.epicIds||!G.adoCfg.epicIds.length) G.adoCfg.epicIds=epics.map(function(e){return e.id;});
+    render();
+    // Load titles in background — one batch call
+    try{
+      var chunk = epIds.slice(0,100);
+      var d = await adoFetch(base+'/_apis/wit/workitems?ids='+chunk.join(',')+'&fields=System.Id,System.Title&api-version=7.0', pat);
+      (d.value||[]).forEach(function(w){
+        var ep = G.availableEpics.find(function(e){return e.id===w.id;});
+        if(ep) ep.title = w.fields['System.Title']||ep.title;
+      });
+      render();
+    }catch(e2){}
+  }catch(e){
+    if(el)el.innerHTML='<div style="color:var(--red);padding:8px">Error: '+e.message+'</div>';
+  }
+};
+
+window.goToEpicPicker = async function(){
+  var org = document.getElementById('ado-org')?.value.trim();
+  var proj = document.getElementById('ado-proj')?.value.trim();
+  var pat  = document.getElementById('ado-pat')?.value.trim();
+  if(!org||!proj||!pat){G.syncError='Please fill in all fields.';render();return;}
+  G.syncing=true; G.syncError=null; render();
+  try{
+    var base = org.replace(/\/+$/,'');
+    var projEnc = encodeURIComponent(proj);
+    // Save creds
+    G.adoCfg.orgUrl=org; G.adoCfg.project=proj; G.adoCfg.pat=pat;
+    var rr = document.getElementById('ado-remember')?.checked;
+    G.rememberPat = !!rr;
+    if(rr){ lsSet('t2e_remember','1'); lsSet('t2e_pat',pat); }
+    // Verify PAT
+    await adoFetch(base+'/'+projEnc+'/_apis/wit/workitemtypes?api-version=7.0', pat);
+    // Fetch epics via WIQL
+    var wiql = "SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType]='Epic' AND [System.State]<>'Closed' ORDER BY [System.Id]";
+    var res = await adoPost(base+'/'+projEnc+'/_apis/wit/wiql?api-version=7.0&$top=200', pat, {query:wiql});
+    var epIds = (res.workItems||[]).map(function(w){return w.id;});
+    // Show IDs immediately so user can interact
+    G.availableEpics = epIds.map(function(id){return {id:id,title:'Epic #'+id};});
+    G.adoCfg.epicIds = epIds.slice();
+    G.connectStep=2; G.syncing=false; render();
+    // Load titles in background
+    if(epIds.length){
+      try{
+        var chunk = epIds.slice(0,100).join(',');
+        var d = await adoFetch(base+'/_apis/wit/workitems?ids='+chunk+'&fields=System.Id,System.Title&api-version=7.0', pat);
+        (d.value||[]).forEach(function(w){
+          var ep=G.availableEpics.find(function(e){return e.id===w.id;});
+          if(ep)ep.title=w.fields['System.Title']||ep.title;
+        });
+        render();
+      }catch(e2){}
+    }
+  }catch(e){
+    G.syncing=false;
+    console.error('goToEpicPicker error:',e);
+    G.syncError=(e.message||'Connection failed.')+' (Check browser console for details.)';
+    render();
+  }
+};
+
+window.toggleEpic = function(id){
+  var ids = G.adoCfg.epicIds||[];
+  var idx = ids.indexOf(id);
+  if(idx===-1) ids.push(id);
+  else ids.splice(idx,1);
+  G.adoCfg.epicIds = ids;
+  render();
+};
+
 </script>
 <button id="chat-fab" onclick="chatOpen()" title="Ask Atlas">
 <svg width="28" height="28" viewBox="-38 -38 76 76" xmlns="http://www.w3.org/2000/svg">
@@ -2286,5 +2530,17 @@ window.closeWhatsNew = function(){
 };
 
 </script>
+<div id="gs-overlay" onclick="if(event.target===this)closeGS()">
+  <div id="gs-box">
+    <input id="gs-input" placeholder="Search items, owners, workstreams..." autocomplete="off"
+      oninput="gsSearch(this.value)" onkeydown="gsKey(event)">
+    <div id="gs-results"><div class="gs-empty">Start typing to search all items…</div></div>
+    <div class="gs-hint">
+      <span>↑↓ navigate</span><span>↵ open</span><span>Esc close</span><span>⌘K / Ctrl+K to open</span>
+    </div>
+  </div>
+</div>
+
+
 </body>
 </html>
