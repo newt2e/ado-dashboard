@@ -294,6 +294,11 @@ tr:hover td{background:var(--surface2)}
 #pat-help-box li{font-size:13px;color:var(--text2);line-height:1.6}
 #pat-help-box a{color:var(--blue);text-decoration:none}
 .pat-help-note{margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text2);border-left:3px solid var(--amber)}
+.comment-dot{display:inline-flex;align-items:center;gap:2px;font-size:10px;color:#3b82f6;margin-left:4px;flex-shrink:0;line-height:1}
+#sync-summary-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:600;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);padding:14px 20px;min-width:320px;max-width:480px;display:none;animation:toast-in .25s ease}
+@keyframes toast-in{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+#sync-summary-toast .toast-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:4px}
+#sync-summary-toast .toast-row:last-child{margin-bottom:0}
 </style>
 </head>
 <body>
@@ -345,31 +350,7 @@ tr:hover td{background:var(--surface2)}
 
 <!-- MAIN -->
 <main class="main" id="main-content">
-  <div class="page-header"><h2>Connect to Azure DevOps</h2><p>Enter your ADO details to load live work items</p></div>
-  <div class="card" style="max-width:520px">
-    <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#475569;display:block;margin-bottom:3px">Organisation URL</label>
-      <input class="inp" id="ado-org" value="https://dev.azure.com/SmartQ-Global-Digital-Cafeteria-Suite">
-    </div>
-    <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#475569;display:block;margin-bottom:3px">Project Name</label>
-      <input class="inp" id="ado-proj" value="Gartner - SQ Transformation">
-    </div>
-    <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#475569;display:block;margin-bottom:3px">Personal Access Token <span style="color:#94a3b8">(Work Items → Read)</span></label>
-      <input class="inp" id="ado-pat" type="password" placeholder="PAT">
-      <div style="margin-top:5px"><a href="#" onclick="event.preventDefault();document.getElementById('pat-help-overlay').classList.add('open')" style="font-size:11px;color:#3b82f6;text-decoration:none">How do I generate a PAT token?</a></div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:11px;color:#475569;display:block;margin-bottom:3px">Root Epic ID</label>
-      <input class="inp" id="ado-epic" value="5276" style="width:120px">
-    </div>
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:14px">
-      <input type="checkbox" id="ado-remember" style="accent-color:#3b82f6;width:13px;height:13px;cursor:pointer">
-      <label for="ado-remember" style="font-size:12px;color:#475569;cursor:pointer;user-select:none">Remember PAT on this device</label>
-    </div>
-    <button class="btn btn-primary" onclick="doConnect()">Connect &amp; Load</button>
-  </div>
+  <div class="empty-state">Loading…</div>
 </main>
 </div>
 
@@ -845,8 +826,8 @@ function itemRowHTML(it, showWS=false, noIndent=false){
   const safeTitle = it.title.replace(/'/g,"\\'");
   return `<div class="item-row ${u==="overdue"?"overdue":u==="thisweek"?"thisweek":""}" style="cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON'&&!event.target.closest('.iid'))showItemPopup('${it.id}','${it.type||"Work Item"}','${safeTitle}','${it.owner}','${it.state}','${it.start||"—"}','${it.target||"—"}','${it.ws}','${(it.description||'').replace(/'/g,"'")}')">
     <a class="iid" href="${adoHref}" target="_blank" rel="noopener" style="cursor:pointer;text-decoration:none;color:inherit" onmouseenter="showIidTip(event,this)" onmouseleave="hideIidTip()" data-id="${it.id}" data-type="${it.type||'Work Item'}" data-title="${it.title.replace(/"/g,'&quot;')}" data-owner="${it.owner}" data-state="${it.state}" data-start="${it.start||'—'}" data-target="${it.target||'—'}" data-ws="${it.ws}">#${it.id}</a>
-    <span class="ititle" style="padding-left:${noIndent?0:(it.level-2)*10}px" title="${it.title}">
-      ${it.title}
+    <span class="ititle" style="padding-left:${noIndent?0:(it.level-2)*10}px;display:flex;align-items:center;gap:4px" title="${it.title}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">
+      ${it.title}</span>${it.commentCount>0?'<span class="comment-dot" title="'+it.commentCount+' comment'+(it.commentCount>1?"s":"")+'"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12a1 1 0 011 1v8a1 1 0 01-1 1H9l-3 3v-3H2a1 1 0 01-1-1V3a1 1 0 011-1z"/></svg>'+it.commentCount+'</span>':''}
     </span>
     <span class="iowner">${it.owner}</span>
     <span class="${dtCls}">${dtLabel}</span>
@@ -1605,6 +1586,7 @@ function mapAdoItems(rawItems, rootEpicId){
     mapped.push({
       id:       item.id,
       title:    f['System.Title'] || '(no title)',
+      commentCount: f['System.CommentCount'] || 0,
       state:    normaliseState(f['System.State']),
       owner,
       start:    (f['Microsoft.VSTS.Scheduling.StartDate']||'').slice(0,10),
@@ -1675,7 +1657,7 @@ async function doSync(){
 
     // 3. Batch-fetch work items (200 per request)
     const idArr = [...ids];
-    const FIELDS = 'System.Id,System.Title,System.State,System.WorkItemType,System.AssignedTo,System.Parent,Microsoft.VSTS.Scheduling.StartDate,Microsoft.VSTS.Scheduling.FinishDate,Microsoft.VSTS.Scheduling.TargetDate,System.ChangedDate,System.Description';
+    const FIELDS = 'System.Id,System.Title,System.State,System.WorkItemType,System.AssignedTo,System.Parent,Microsoft.VSTS.Scheduling.StartDate,Microsoft.VSTS.Scheduling.FinishDate,Microsoft.VSTS.Scheduling.TargetDate,System.ChangedDate,System.Description,System.CommentCount';
     let raw = [];
     for(let i=0;i<idArr.length;i+=200){
       const chunk = idArr.slice(i,i+200);
@@ -1687,6 +1669,8 @@ async function doSync(){
     const mapped = mapAdoItems(raw, epicId);
     rebuildWsMeta(mapped);
 
+    // Capture diff before overwriting
+    const prevItems = G.items || [];
     G.items = mapped;
     G.connected = true;
     G.lastSync = new Date().toISOString();
@@ -1695,6 +1679,8 @@ async function doSync(){
     await storageSet('t2e_sync', G.lastSync);
     lsSet('t2e_ado_cfg', JSON.stringify(G.adoCfg));
 
+    // Show sync summary if not first sync
+    if(prevItems.length > 0) showSyncSummary(prevItems, mapped);
     // Switch to identify (first time) or overview after connect
     if(G.tab==='sync') G.tab = G.currentUser ? 'overview' : 'identify';
   }catch(e){
@@ -1723,22 +1709,46 @@ async function confirmReset(){
 window.doConnect=doConnect; window.doSync=doSync; window.doDisconnect=doDisconnect; window.confirmReset=confirmReset;
 
 // ── IDENTIFY ──
+// ── AUTH ──
+var _CREDS = {"Sydon": "8f98a91cd8ef8a53897ba3d89fcfe58ae1f56fe7036db10b40a9c5e6cd4e0a45"};
+async function sha256(str){
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+window.doLogin = async function(name, pin){
+  var errEl = document.getElementById('login-err');
+  if(!name){if(errEl)errEl.textContent='Please enter your name.';return;}
+  if(_CREDS[name]){
+    if(!pin){if(errEl)errEl.textContent='This account requires a PIN.';return;}
+    var hashed = await sha256(pin);
+    if(hashed !== _CREDS[name]){if(errEl)errEl.textContent='Incorrect PIN. Please try again.';return;}
+  }
+  G.currentUser=name; lsSet('t2e_current_user',name);
+  G.tab='overview'; render();
+};
+
 function renderIdentify(){
   const owners = [...new Set(G.items.map(i=>i.owner))].sort();
   const changingUser = !!G.currentUser;
   return `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:0">
     <div class="card" style="max-width:420px;width:100%">
-      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">${changingUser ? "👤 Change Name" : "👋 Welcome"}</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${changingUser ? `Currently set to <strong>${G.currentUser}</strong>. Pick a different name below.` : "Select your name to personalise your view. This is saved to your device."}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">${changingUser ? "👤 Change Name" : "👋 Who are you?"}</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${changingUser ? `Currently set to <strong>${G.currentUser}</strong>.` : "Select or enter your name. Some accounts require a PIN."}</div>
       <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">Your Name</label>
-      <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:12px;font-size:14px" onchange="(function(v){if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='mytasks';render();}})(this.value)">
+      <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:12px;font-size:14px" onchange="document.getElementById('identify-pin-row').style.display=_CREDS[this.value]?'block':'none'">
         <option value="">— Select your name —</option>
         ${owners.map(o=>`<option value="${o}"${G.currentUser===o?' selected':''} >${o}</option>`).join('')}
       </select>
+      <div id="identify-pin-row" style="display:none;margin-bottom:12px">
+        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">PIN</label>
+        <input class="inp" id="identify-pin" type="password" placeholder="Enter your PIN" style="font-size:14px" onkeydown="if(event.key==='Enter'){var n=document.getElementById('identify-select').value;doLogin(n,this.value);}">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="var n=document.getElementById('identify-select').value;var p=document.getElementById('identify-pin')?document.getElementById('identify-pin').value:'';doLogin(n,p);">Continue</button>
+      <div id="login-err" style="font-size:12px;color:var(--red);margin-bottom:12px;min-height:16px"></div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-align:center">— or enter your name manually —</div>
       <div style="display:flex;gap:8px;margin-bottom:16px">
-        <input class="inp" id="identify-custom" placeholder="Type your name..." style="font-size:14px;flex:1" onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='overview';render();}}">
-        <button class="btn btn-primary" onclick="var v=document.getElementById('identify-custom').value.trim();if(v){G.currentUser=v;lsSet('t2e_current_user',v);G.tab='overview';render();}">Go</button>
+        <input class="inp" id="identify-custom" placeholder="Type your name..." style="font-size:14px;flex:1" onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v)doLogin(v,'');}">
+        <button class="btn btn-primary" onclick="var v=document.getElementById('identify-custom').value.trim();if(v)doLogin(v,'');">Go</button>
       </div>
       <button class="btn" style="font-size:11px;color:var(--text3)" onclick="G.tab='overview';render()">Skip for now</button>
     </div>
@@ -2002,17 +2012,8 @@ function render(){
     const lastVisit = lsGet('t2e_last_visit');
     const firstVisitToday = lastVisit !== today;
     lsSet('t2e_last_visit', today);
-    // First time ever: go to identify. Very first visit (ever): all items. First visit today: my tasks. Otherwise: overview.
-    const everVisited = lsGet('t2e_ever_visited');
+    // First time ever: go to identify. First visit today: my tasks. Otherwise: overview.
     if(!G.currentUser) G.tab = 'identify';
-    else if(!everVisited){
-      lsSet('t2e_ever_visited','1');
-      G.tab = 'overview';
-      render();
-      await doSync();
-      setTimeout(function(){ setTab('all'); }, 0);
-      return;
-    }
     else if(firstVisitToday) G.tab = 'mytasks';
     else G.tab = 'overview';
     render();
@@ -2173,6 +2174,47 @@ document.addEventListener('keydown',function(e){
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openGS();}
   if(e.key==='Escape')closeGS();
 });
+
+window.showSyncSummary = function(prev, next){
+  var prevMap={}, nextMap={};
+  prev.forEach(function(i){prevMap[i.id]=i;});
+  next.forEach(function(i){nextMap[i.id]=i;});
+
+  var newItems=next.filter(function(i){return !prevMap[i.id];});
+  var removedItems=prev.filter(function(i){return !nextMap[i.id];});
+  var nowClosed=next.filter(function(i){return i.state==='Closed'&&prevMap[i.id]&&prevMap[i.id].state!=='Closed';});
+  var nowOverdue=next.filter(function(i){return urgency(i)==='overdue'&&prevMap[i.id]&&urgency(prevMap[i.id])!=='overdue';});
+  var stateChanged=next.filter(function(i){return prevMap[i.id]&&prevMap[i.id].state!==i.state&&i.state!=='Closed';});
+
+  function itemLines(arr, limit){
+    var lines=arr.slice(0,limit).map(function(i){return '<div style="font-size:11px;color:var(--text2);padding-left:20px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+i.title+(i.owner?' · '+i.owner:'')+'</div>';}).join('');
+    if(arr.length>limit) lines+='<div style="font-size:11px;color:var(--text3);padding-left:20px;margin-top:2px">...and '+(arr.length-limit)+' more</div>';
+    return lines;
+  }
+
+  var rows=[];
+  if(nowClosed.length) rows.push({icon:'✅',color:'#16a34a',text:nowClosed.length+' item'+(nowClosed.length>1?'s':'')+' closed',detail:itemLines(nowClosed,3)});
+  if(nowOverdue.length) rows.push({icon:'⚠️',color:'#dc2626',text:nowOverdue.length+' item'+(nowOverdue.length>1?'s':'')+' became overdue',detail:itemLines(nowOverdue,3)});
+  if(stateChanged.length) rows.push({icon:'🔄',color:'#2563eb',text:stateChanged.length+' item'+(stateChanged.length>1?'s':'')+' changed state',detail:itemLines(stateChanged,3)});
+  if(newItems.length) rows.push({icon:'➕',color:'#7c3aed',text:newItems.length+' new item'+(newItems.length>1?'s':'')+' added',detail:itemLines(newItems,3)});
+  if(removedItems.length) rows.push({icon:'➖',color:'#6b7280',text:removedItems.length+' item'+(removedItems.length>1?'s':'')+' removed',detail:itemLines(removedItems,3)});
+
+  if(!rows.length) rows.push({icon:'✓',color:'#16a34a',text:'No changes since last sync',detail:''});
+
+  var rowsEl=document.getElementById('sync-summary-rows');
+  var timeEl=document.getElementById('sync-summary-time');
+  var toast=document.getElementById('sync-summary-toast');
+  if(!rowsEl||!toast) return;
+
+  rowsEl.innerHTML=rows.map(function(r){
+    return '<div class="toast-row"><span>'+r.icon+'</span><span style="color:'+r.color+';font-weight:600">'+r.text+'</span></div>'+(r.detail||'');
+  }).join('');
+  timeEl.textContent='Synced '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  toast.style.display='block';
+  // Auto-dismiss after 6 seconds
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(function(){ toast.style.display='none'; }, 6000);
+};
 
 </script>
 <button id="chat-fab" onclick="chatOpen()" title="Ask Atlas">
@@ -2477,6 +2519,15 @@ window.closeWhatsNew = function(){
     </ol>
     <div class="pat-help-note">⚠ The token is only shown once. Copy it before closing the ADO window.</div>
   </div>
+</div>
+
+<div id="sync-summary-toast">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em">🔄 Sync Summary</div>
+    <button onclick="document.getElementById('sync-summary-toast').style.display='none'" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3)">✕</button>
+  </div>
+  <div id="sync-summary-rows"></div>
+  <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:right" id="sync-summary-time"></div>
 </div>
 
 </body>
