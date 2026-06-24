@@ -295,6 +295,7 @@ tr:hover td{background:var(--surface2)}
 #pat-help-box a{color:var(--blue);text-decoration:none}
 .pat-help-note{margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text2);border-left:3px solid var(--amber)}
 .comment-dot{display:inline-flex;align-items:center;gap:2px;font-size:10px;color:#3b82f6;margin-left:4px;flex-shrink:0;line-height:1}
+.idt.green{color:var(--green);font-weight:600}
 #sync-summary-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:600;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);padding:14px 20px;min-width:320px;max-width:480px;display:none;animation:toast-in .25s ease}
 @keyframes toast-in{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 #sync-summary-toast .toast-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:4px}
@@ -358,14 +359,21 @@ tr:hover td{background:var(--surface2)}
 // WS metadata — used as fallback display names; overwritten dynamically from ADO data
 // ── VERSION / CHANGELOG ──
 // Update APP_VERSION and add an entry to CHANGELOG to trigger the What's New popup.
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const CHANGELOG = {
+  '1.6.0': [
+    'Gantt owner column — shows owner at milestone level',
+    'Full owner names pulled from ADO',
+    'Comment icon on items with ADO comments',
+    'Sync summary toast — see what changed after each sync',
+    'Closed date shows actual date with early/late indicator',
+  ],
   '1.5.0': [
-    'Comment icon on items that have ADO comments',
-    'Sync summary — shows what changed after every sync',
-    'PAT help modal with screenshots on connect screen',
+    'Comment icon on items with ADO comments',
+    'Sync summary toast after each sync',
+    'Closed date shows actual date with early/late indicator',
+    'PAT help modal with screenshots',
     'PIN authentication for protected accounts',
-    'Connect ADO shown immediately on first visit',
   ],
   '1.4.0': [
     'Overdue alert badge on Overview nav — shows count after each sync',
@@ -450,7 +458,7 @@ let G = {
   ganttFilter: {state:[], owner:[], type:[]},
 };
 
-function ownerMeta(n){ return OWNER_META[n] || {color:"#6b7280",role:"Team member"}; }
+function ownerMeta(n){ return OWNER_META[n] || OWNER_META[(n||'').split(' ')[0]] || {color:"#6b7280",role:"Team member"}; }
 function ownerColor(n){ return ownerMeta(n).color; }
 function ownerInit(n){ return (n||"?").slice(0,2).toUpperCase(); }
 
@@ -707,6 +715,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
   // Header
   html += `<div class="gantt-hdr">
     <div class="gantt-lc" style="width:${NAME_W}px;min-width:${NAME_W}px">Work Item</div>
+    <div class="gantt-lc" style="width:140px;min-width:140px">Owner</div>
     <div class="gantt-tc" style="height:34px;position:relative">
       ${months.map(m=>`<div style="position:absolute;left:${m.left}%;top:0;bottom:0;display:flex;align-items:center;padding-left:5px;font-size:10px;font-weight:600;color:var(--text3);border-left:1px solid var(--border);letter-spacing:.04em;pointer-events:none;user-select:none">${m.label} '${m.yr}</div>`).join("")}
       <div style="position:absolute;left:${todayPct}%;top:0;bottom:0;border-left:1.5px dashed #ef4444;z-index:5;pointer-events:none">
@@ -732,6 +741,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
         <span style="width:9px;height:9px;border-radius:2px;background:${wsc};flex-shrink:0"></span>
         <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text)" title="Feature: ${ws.feature.title}">${ws.feature.title}</span>
       </div>
+      <div style="width:140px;min-width:140px;padding:0 10px;display:flex;align-items:center;background:#f8fafc;border-right:1px solid var(--border);flex-shrink:0;overflow:hidden"><span style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ws.feature.owner||"—"}</span></div>
       <div class="time-cell" style="background:#f8fafc">
         ${gridLines}${todayLine}${goliveLine}
         <div title="${ws.feature.title}&#10;${ws.feature.start?fmtDate(ws.feature.start):'No start'} → ${ws.feature.target?fmtDate(ws.feature.target):'No end'}&#10;${Math.round(closedPct)}% complete · ${ws.feature.state}" style="position:absolute;left:${fLeft}%;width:${fW}%;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;background:${barColor(ws.feature)};opacity:0.25;min-width:4px">
@@ -755,6 +765,7 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
             <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text2)" title="User Story: ${us.story.title}">${us.story.title}</span>
             ${hasTasks?`<span style="font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px">${us.tasks.length} tasks</span>`:""}
           </div>
+          <div style="width:140px;min-width:140px;border-right:1px solid var(--border);flex-shrink:0;background:var(--surface)"></div>
           <div class="time-cell">
             ${gridLines}${todayLine}${goliveLine}
             <div title="${us.story.title}&#10;${us.story.start?fmtDate(us.story.start):'No start'} → ${us.story.target?fmtDate(us.story.target):'No end'}&#10;${us.story.owner} · ${us.story.state}" style="position:absolute;left:${sLeft}%;width:${sW}%;top:50%;transform:translateY(-50%);height:8px;border-radius:4px;background:${bc};opacity:${op};min-width:3px"></div>
@@ -769,8 +780,8 @@ function ganttHTML(items, NAME_W=300, showFeat=true){
               <div class="name-cell" style="width:${NAME_W}px;min-width:${NAME_W}px;background:#fafbfd;padding-left:34px;border-left:3px solid ${wsc}22" title="${task.title} | ${task.owner} | ${task.state}">
                 <span style="width:5px;height:5px;border-radius:50%;background:${tbc};opacity:${tOp};flex-shrink:0;margin-right:4px"></span>
                 <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text3)" title="Task: #${task.id} · ${task.owner} · ${task.title}">${task.title}</span>
-                <span style="font-size:9px;color:var(--text3);font-family:var(--mono);opacity:.6">${task.owner[0]}</span>
               </div>
+              <div style="width:140px;min-width:140px;border-right:1px solid var(--border);flex-shrink:0;background:#fafbfd"></div>
               <div class="time-cell" style="background:#fafbfd">
                 ${gridLines}${todayLine}${goliveLine}
                 <div title="${task.title}&#10;${task.start?fmtDate(task.start):'No start'} → ${task.target?fmtDate(task.target):'No end'}&#10;${task.owner} · ${task.state}" style="position:absolute;left:${tLeft}%;width:${tW}%;top:50%;transform:translateY(-50%);height:6px;border-radius:3px;background:${tbc};opacity:${tOp};min-width:3px"></div>
@@ -827,8 +838,20 @@ function filterBarHTML(pool, fOwner, fWS, fQ, onChange, showSearch=false){
 
 function itemRowHTML(it, showWS=false, noIndent=false){
   const u=urgency(it), d=dl(it.target);
-  const dtLabel = it._dateOverride ? it._dateOverride : it.state==="Closed" ? fmtDate(it.target) : u==="overdue" ? `${Math.abs(d)}d overdue` : u==="thisweek" ? `Due ${fmtDate(it.target)}` : fmtDate(it.target);
-  const dtCls = u==="overdue" ? "idt red" : u==="thisweek" ? "idt amb" : "idt";
+  var dtLabel;
+  if(it._dateOverride){ dtLabel=it._dateOverride; }
+  else if(it.state==="Closed"&&it.changedDate){
+    var _cd=new Date(it.changedDate);
+    dtLabel=_cd.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_cd.getMonth()];
+    if(it.target){var _diff=Math.round((new Date(it.target)-_cd)/86400000);if(_diff>0)dtLabel+=' ('+_diff+'d early)';else if(_diff<0)dtLabel+=' ('+Math.abs(_diff)+'d late)';}
+  } else if(u==="overdue"){ dtLabel=`${Math.abs(d)}d overdue`; }
+  else if(u==="thisweek"){ dtLabel=`Due ${fmtDate(it.target)}`; }
+  else { dtLabel=fmtDate(it.target); }
+  var dtCls;
+  if(it.state==="Closed"&&it.changedDate&&it.target){
+    var _d2=Math.round((new Date(it.target)-new Date(it.changedDate))/86400000);
+    dtCls=_d2>0?'idt green':_d2<0?'idt red':'idt';
+  } else { dtCls=u==="overdue"?'idt red':u==="thisweek"?'idt amb':'idt'; }
   const adoHref = adoUrl(it.id);
   const safeTitle = it.title.replace(/'/g,"\\'");
   return `<div class="item-row ${u==="overdue"?"overdue":u==="thisweek"?"thisweek":""}" style="cursor:pointer" onclick="if(event.target.tagName!=='SELECT'&&event.target.tagName!=='BUTTON'&&!event.target.closest('.iid'))showItemPopup('${it.id}','${it.type||"Work Item"}','${safeTitle}','${it.owner}','${it.state}','${it.start||"—"}','${it.target||"—"}','${it.ws}','${(it.description||'').replace(/'/g,"'")}')">
@@ -996,6 +1019,8 @@ window.showItemPopup = function(id,type,title,owner,state,start,target,ws,descri
         var author = c.createdBy && c.createdBy.displayName ? c.createdBy.displayName : 'Unknown';
         var date = c.createdDate ? new Date(c.createdDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
         var text = (c.text||'').replace(/<[^>]*>/g,'').trim();
+        // Make URLs clickable
+        text = text.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none;word-break:break-all" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">$1</a>');
         return '<div style="margin-bottom:10px">'
           +'<div style="font-size:11px;font-weight:600;color:var(--text2)">'+author+' <span style="font-weight:400;color:var(--text3)">'+date+'</span></div>'
           +'<div style="font-size:12px;color:var(--text);margin-top:3px;line-height:1.5">'+text+'</div>'
@@ -1589,7 +1614,7 @@ function mapAdoItems(rawItems, rootEpicId){
     if(item.id === rootEpicId) continue; // skip root epic row itself
     const f = item.fields;
     const target = f['Microsoft.VSTS.Scheduling.FinishDate'] || f['Microsoft.VSTS.Scheduling.TargetDate'] || '';
-    const owner = (f['System.AssignedTo']?.displayName || 'Unassigned').split(' ')[0];
+    const owner = f['System.AssignedTo']?.displayName || 'Unassigned';
     mapped.push({
       id:       item.id,
       title:    f['System.Title'] || '(no title)',
@@ -1676,7 +1701,6 @@ async function doSync(){
     const mapped = mapAdoItems(raw, epicId);
     rebuildWsMeta(mapped);
 
-    // Capture diff before overwriting
     const prevItems = G.items || [];
     G.items = mapped;
     G.connected = true;
@@ -1686,9 +1710,7 @@ async function doSync(){
     await storageSet('t2e_sync', G.lastSync);
     lsSet('t2e_ado_cfg', JSON.stringify(G.adoCfg));
 
-    // Show sync summary if not first sync
     if(prevItems.length > 0) showSyncSummary(prevItems, mapped);
-    // Switch to identify (first time) or overview after connect
     if(G.tab==='sync') G.tab = G.currentUser ? 'overview' : 'identify';
   }catch(e){
     G.syncError = e.message;
@@ -1716,40 +1738,23 @@ async function confirmReset(){
 window.doConnect=doConnect; window.doSync=doSync; window.doDisconnect=doDisconnect; window.confirmReset=confirmReset;
 
 // ── IDENTIFY ──
-// ── AUTH ──
-var _CREDS = {"Sydon": "8f98a91cd8ef8a53897ba3d89fcfe58ae1f56fe7036db10b40a9c5e6cd4e0a45"};
-async function sha256(str){
-  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-}
-window.doLogin = async function(name, pin){
-  var errEl = document.getElementById('login-err');
-  if(!name){if(errEl)errEl.textContent='Please enter your name.';return;}
-  if(_CREDS[name]){
-    if(!pin){if(errEl)errEl.textContent='This account requires a PIN.';return;}
-    var hashed = await sha256(pin);
-    if(hashed !== _CREDS[name]){if(errEl)errEl.textContent='Incorrect PIN. Please try again.';return;}
-  }
-  G.currentUser=name; lsSet('t2e_current_user',name);
-  G.tab='overview'; render();
-};
+var _CREDS={"Sydon":"8f98a91cd8ef8a53897ba3d89fcfe58ae1f56fe7036db10b40a9c5e6cd4e0a45"};
+async function sha256(str){var buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");}
+window.doLogin=async function(name,pin){var errEl=document.getElementById("login-err");if(!name){if(errEl)errEl.textContent="Please enter your name.";return;}if(_CREDS[name]){if(!pin){if(errEl)errEl.textContent="This account requires a PIN.";return;}var hashed=await sha256(pin);if(hashed!==_CREDS[name]){if(errEl)errEl.textContent="Incorrect PIN. Please try again.";return;}}G.currentUser=name;lsSet("t2e_current_user",name);G.tab="overview";render();};
 
 function renderIdentify(){
   const owners = [...new Set(G.items.map(i=>i.owner))].sort();
   const changingUser = !!G.currentUser;
   return `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:0">
     <div class="card" style="max-width:420px;width:100%">
-      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">${changingUser ? "👤 Change Name" : "👋 Who are you?"}</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${changingUser ? `Currently set to <strong>${G.currentUser}</strong>.` : "Select or enter your name. Some accounts require a PIN."}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">${changingUser ? "👤 Change Name" : "👋 Welcome"}</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${changingUser ? `Currently set to <strong>${G.currentUser}</strong>. Pick a different name below.` : "Select your name to personalise your view. This is saved to your device."}</div>
       <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">Your Name</label>
       <select class="inp" id="identify-select" style="cursor:pointer;margin-bottom:12px;font-size:14px" onchange="document.getElementById('identify-pin-row').style.display=_CREDS[this.value]?'block':'none'">
         <option value="">— Select your name —</option>
         ${owners.map(o=>`<option value="${o}"${G.currentUser===o?' selected':''} >${o}</option>`).join('')}
       </select>
-      <div id="identify-pin-row" style="display:none;margin-bottom:12px">
-        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">PIN</label>
-        <input class="inp" id="identify-pin" type="password" placeholder="Enter your PIN" style="font-size:14px" onkeydown="if(event.key==='Enter'){var n=document.getElementById('identify-select').value;doLogin(n,this.value);}">
-      </div>
+      <div id="identify-pin-row" style="display:none;margin-bottom:12px"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:5px">PIN</label><input class="inp" id="identify-pin" type="password" placeholder="Enter your PIN" style="font-size:14px" onkeydown="if(event.key==='Enter'){var n=document.getElementById('identify-select').value;doLogin(n,this.value);}"></div>
       <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="var n=document.getElementById('identify-select').value;var p=document.getElementById('identify-pin')?document.getElementById('identify-pin').value:'';doLogin(n,p);">Continue</button>
       <div id="login-err" style="font-size:12px;color:var(--red);margin-bottom:12px;min-height:16px"></div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-align:center">— or enter your name manually —</div>
@@ -2186,41 +2191,28 @@ window.showSyncSummary = function(prev, next){
   var prevMap={}, nextMap={};
   prev.forEach(function(i){prevMap[i.id]=i;});
   next.forEach(function(i){nextMap[i.id]=i;});
-
   var newItems=next.filter(function(i){return !prevMap[i.id];});
   var removedItems=prev.filter(function(i){return !nextMap[i.id];});
   var nowClosed=next.filter(function(i){return i.state==='Closed'&&prevMap[i.id]&&prevMap[i.id].state!=='Closed';});
   var nowOverdue=next.filter(function(i){return urgency(i)==='overdue'&&prevMap[i.id]&&urgency(prevMap[i.id])!=='overdue';});
   var stateChanged=next.filter(function(i){return prevMap[i.id]&&prevMap[i.id].state!==i.state&&i.state!=='Closed';});
-
-  function itemLines(arr, limit){
-    var lines=arr.slice(0,limit).map(function(i){return '<div style="font-size:11px;color:var(--text2);padding-left:20px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+i.title+(i.owner?' · '+i.owner:'')+'</div>';}).join('');
-    if(arr.length>limit) lines+='<div style="font-size:11px;color:var(--text3);padding-left:20px;margin-top:2px">...and '+(arr.length-limit)+' more</div>';
-    return lines;
-  }
-
+  function itemLines(arr,limit){var lines=arr.slice(0,limit).map(function(i){return '<div style="font-size:11px;color:var(--text2);padding-left:20px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+i.title+(i.owner?' · '+i.owner:'')+'</div>';}).join('');if(arr.length>limit)lines+='<div style="font-size:11px;color:var(--text3);padding-left:20px;margin-top:2px">...and '+(arr.length-limit)+' more</div>';return lines;}
   var rows=[];
-  if(nowClosed.length) rows.push({icon:'✅',color:'#16a34a',text:nowClosed.length+' item'+(nowClosed.length>1?'s':'')+' closed',detail:itemLines(nowClosed,3)});
-  if(nowOverdue.length) rows.push({icon:'⚠️',color:'#dc2626',text:nowOverdue.length+' item'+(nowOverdue.length>1?'s':'')+' became overdue',detail:itemLines(nowOverdue,3)});
-  if(stateChanged.length) rows.push({icon:'🔄',color:'#2563eb',text:stateChanged.length+' item'+(stateChanged.length>1?'s':'')+' changed state',detail:itemLines(stateChanged,3)});
-  if(newItems.length) rows.push({icon:'➕',color:'#7c3aed',text:newItems.length+' new item'+(newItems.length>1?'s':'')+' added',detail:itemLines(newItems,3)});
-  if(removedItems.length) rows.push({icon:'➖',color:'#6b7280',text:removedItems.length+' item'+(removedItems.length>1?'s':'')+' removed',detail:itemLines(removedItems,3)});
-
-  if(!rows.length) rows.push({icon:'✓',color:'#16a34a',text:'No changes since last sync',detail:''});
-
+  if(nowClosed.length)rows.push({icon:'✅',color:'#16a34a',text:nowClosed.length+' item'+(nowClosed.length>1?'s':'')+' closed',detail:itemLines(nowClosed,3)});
+  if(nowOverdue.length)rows.push({icon:'⚠️',color:'#dc2626',text:nowOverdue.length+' item'+(nowOverdue.length>1?'s':'')+' became overdue',detail:itemLines(nowOverdue,3)});
+  if(stateChanged.length)rows.push({icon:'🔄',color:'#2563eb',text:stateChanged.length+' item'+(stateChanged.length>1?'s':'')+' changed state',detail:itemLines(stateChanged,3)});
+  if(newItems.length)rows.push({icon:'➕',color:'#7c3aed',text:newItems.length+' new item'+(newItems.length>1?'s':'')+' added',detail:itemLines(newItems,3)});
+  if(removedItems.length)rows.push({icon:'➖',color:'#6b7280',text:removedItems.length+' item'+(removedItems.length>1?'s':'')+' removed',detail:itemLines(removedItems,3)});
+  if(!rows.length)rows.push({icon:'✓',color:'#16a34a',text:'No changes since last sync',detail:''});
   var rowsEl=document.getElementById('sync-summary-rows');
   var timeEl=document.getElementById('sync-summary-time');
   var toast=document.getElementById('sync-summary-toast');
-  if(!rowsEl||!toast) return;
-
-  rowsEl.innerHTML=rows.map(function(r){
-    return '<div class="toast-row"><span>'+r.icon+'</span><span style="color:'+r.color+';font-weight:600">'+r.text+'</span></div>'+(r.detail||'');
-  }).join('');
+  if(!rowsEl||!toast)return;
+  rowsEl.innerHTML=rows.map(function(r){return '<div class="toast-row"><span>'+r.icon+'</span><span style="color:'+r.color+';font-weight:600">'+r.text+'</span></div>'+(r.detail||'');}).join('');
   timeEl.textContent='Synced '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   toast.style.display='block';
-  // Auto-dismiss after 6 seconds
   clearTimeout(window._toastTimer);
-  window._toastTimer=setTimeout(function(){ toast.style.display='none'; }, 6000);
+  window._toastTimer=setTimeout(function(){toast.style.display='none';},6000);
 };
 
 </script>
@@ -2527,7 +2519,6 @@ window.closeWhatsNew = function(){
     <div class="pat-help-note">⚠ The token is only shown once. Copy it before closing the ADO window.</div>
   </div>
 </div>
-
 <div id="sync-summary-toast">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
     <div style="font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em">🔄 Sync Summary</div>
