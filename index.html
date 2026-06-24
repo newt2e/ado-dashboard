@@ -78,8 +78,8 @@ select,input,textarea{font-family:inherit}
 
 /* ── ITEM LIST ── */
 .item-list{display:flex;flex-direction:column;gap:2px}
-.item-row{display:grid;align-items:center;padding:8px 10px;border-radius:6px;gap:10px;transition:background .12s;cursor:default;grid-template-columns:44px 1fr 70px 90px 120px}
-.ws-no-owner .item-row{grid-template-columns:44px 1fr 90px 120px}
+.item-row{display:grid;align-items:center;padding:8px 10px;border-radius:6px;gap:10px;transition:background .12s;cursor:default;grid-template-columns:44px 1fr 70px 200px 120px}
+.ws-no-owner .item-row{grid-template-columns:44px 1fr 200px 120px}
 .ws-no-owner .iowner{display:none}
 .item-row:hover{background:var(--surface2)}
 .item-row.overdue{border-left:3px solid var(--red);padding-left:8px}
@@ -87,7 +87,10 @@ select,input,textarea{font-family:inherit}
 .iid{font-family:var(--mono);font-size:10px;color:var(--text3)}
 .ititle{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;align-self:center}
 .iowner{font-size:11px;color:var(--text2);align-self:center}
-.idt{font-size:11px;font-family:var(--mono);white-space:nowrap}
+.idt{font-size:11px;font-family:var(--mono);white-space:nowrap}.wa-no-owner .item-row{grid-template-columns:44px 1fr 200px 120px}
+.wa-no-owner .item-row .iowner{display:none}
+.wa-no-owner .item-row{grid-template-columns:44px 1fr 200px 120px}
+.wa-no-owner .item-row .iowner{display:none}
 .idt.red{color:var(--red-t);font-weight:500}
 .idt.amb{color:var(--amber-t);font-weight:500}
 
@@ -359,8 +362,15 @@ tr:hover td{background:var(--surface2)}
 // WS metadata — used as fallback display names; overwritten dynamically from ADO data
 // ── VERSION / CHANGELOG ──
 // Update APP_VERSION and add an entry to CHANGELOG to trigger the What's New popup.
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const CHANGELOG = {
+  '1.7.0': [
+    'Weekly Analysis: closed items now show start, target and actual closed date',
+    'Weekly Analysis: early/late indicator on closed items',
+    'Weekly Analysis: owner column hidden for more space',
+    'Gantt: owner column at milestone level',
+    'Full owner names from ADO',
+  ],
   '1.6.0': [
     'Gantt owner column — shows owner at milestone level',
     'Full owner names pulled from ADO',
@@ -1881,9 +1891,8 @@ function renderWeeklyAnalysis(){
     return Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   }
 
-  // Show changedDate as the display date for completed items
-  const completedMapped = completedLastWeek.map(i=>Object.assign({},i,{target:i.changedDate||i.target}));
-  const completedByWS  = groupByWS(completedMapped);
+  // Completed section — show start, target and actual closed date
+  const completedByWS  = groupByWS(completedLastWeek);
   const upcomingByWS   = groupByWS(upcomingNextWeek);
   const thisWeekByWS   = groupByWS(thisWeekItems);
 
@@ -1891,7 +1900,7 @@ function renderWeeklyAnalysis(){
   const nextLabel = `${upcomingStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${nextWeekEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
   const nextTitle = 'Upcoming Items';
 
-  function wsSection(groups, emptyMsg){
+  function wsSection(groups, emptyMsg, noOwner){
     if(groups.length===0) return `<div class="empty-state">${emptyMsg}</div>`;
     return groups.map(([ws, its])=>`
       <div style="margin-bottom:14px">
@@ -1900,11 +1909,62 @@ function renderWeeklyAnalysis(){
           <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${ws} — ${WS_META[ws]?.name||ws}</span>
           <span class="badge badge-gray">${its.length}</span>
         </div>
-        <div class="item-list">${its.map(it=>{
+        <div class="item-list${noOwner?' wa-no-owner':''}">${its.map(it=>{
+          if(it.state==="Closed"&&it.changedDate){
+            const s=it.start?fmtDate(it.start):null;
+            const t=it.target?fmtDate(it.target):null;
+            const c=fmtDate(it.changedDate);
+            const diff2=it.target?Math.round((new Date(it.target)-new Date(it.changedDate))/86400000):null;
+            const el2=diff2===null?'':diff2>0?` (${diff2}d early)`:diff2<0?` (${Math.abs(diff2)}d late)`:' (on time)';
+            const dateRange=s&&t?s+' → '+t:s||(t?'Due '+t:'');
+            const parts=[dateRange,c?'✓ '+c+el2:''].filter(Boolean).join(dateRange?' | ':'');
+            const clone=Object.assign({},it,{_dateOverride:parts});
+            return itemRowHTML(clone,false,true);
+          }
           const hasStart = it.start && it.start !== it.target;
           if(!hasStart) return itemRowHTML(it,false,true);
           const clone = Object.assign({},it,{_dateOverride: fmtDate(it.start)+" → "+fmtDate(it.target)});
           return itemRowHTML(clone,false,true);
+        }).join("")}</div>
+      </div>`).join("");
+  }
+
+  function completedSection(groups){
+    if(groups.length===0) return `<div class="empty-state">No items completed last week.</div>`;
+    return groups.map(([ws, its])=>`
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="width:8px;height:8px;border-radius:2px;background:${WS_COLORS[ws]||'#94a3b8'};flex-shrink:0"></span>
+          <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${ws} — ${WS_META[ws]?.name||ws}</span>
+          <span class="badge badge-gray">${its.length}</span>
+        </div>
+        <div class="item-list wa-no-owner">${its.map(it=>{
+          const safeTitle = (it.title||'').replace(/'/g,"'");
+          const start  = it.start       ? fmtDate(it.start)       : null;
+          const target = it.target      ? fmtDate(it.target)      : null;
+          const closed = it.changedDate ? fmtDate(it.changedDate) : null;
+          const diff   = (it.target&&it.changedDate) ? Math.round((new Date(it.target)-new Date(it.changedDate))/86400000) : null;
+          const earlyLate = diff===null?'':
+            diff>0  ? `<span style="color:var(--green);font-size:10px;font-weight:700;white-space:nowrap">(${diff}d early)</span>`:
+            diff<0  ? `<span style="color:var(--red);font-size:10px;font-weight:700;white-space:nowrap">(${Math.abs(diff)}d late)</span>`:
+                      `<span style="font-size:10px;color:var(--text3);white-space:nowrap">(on time)</span>`;
+          const cc = it.commentCount>0 ? `<span class="comment-dot" title="${it.commentCount} comment${it.commentCount>1?'s':''}"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12a1 1 0 011 1v8a1 1 0 01-1 1H9l-3 3v-3H2a1 1 0 01-1-1V3a1 1 0 011-1z"/></svg>${it.commentCount}</span>` : '';
+          return `<div class="item-row" style="cursor:pointer" onclick="showItemPopup('${it.id}','${it.type||'Work Item'}','${safeTitle}','${it.owner}','${it.state}','${it.start||'—'}','${it.target||'—'}','${it.ws}','')">
+            <span class="iid">#${it.id}</span>
+            <span class="ititle" style="display:flex;align-items:center;gap:4px" title="${it.title}">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${it.title}</span>${cc}
+            </span>
+            <span class="iowner">${it.owner}</span>
+            <span class="idt" style="display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:11px;font-family:var(--mono)">
+              ${start?`<span style="color:var(--text2)">${start}</span>`:''}
+              ${start&&target?`<span style="color:var(--text3)">→</span>`:''}
+              ${target?`<span style="color:var(--text2)">${target}</span>`:''}
+              ${closed&&(start||target)?`<span style="color:var(--text3);margin:0 2px">|</span>`:''}
+              ${closed?`<span style="color:var(--green);font-weight:600">✓ ${closed}</span>`:''}
+              ${earlyLate}
+            </span>
+            ${stateBadge(it.state)}
+          </div>`;
         }).join("")}</div>
       </div>`).join("");
   }
@@ -1960,7 +2020,7 @@ function renderWeeklyAnalysis(){
       </select>
       ${waf.twState!=="All"?`<button onclick="G.waFilter.twState='All';render()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">clear</button>`:""}
     </div>
-    ${wsSection(thisWeekByWS,"Nothing due this week")}
+    ${wsSection(thisWeekByWS,"Nothing due this week",true)}
   </div>
 
   <div class="two-col" style="gap:16px;align-items:start">
@@ -1971,7 +2031,7 @@ function renderWeeklyAnalysis(){
           <span class="badge badge-green">${completedLastWeek.length} items</span>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${weekLabel}</div>
-        ${wsSection(completedByWS,"Nothing was completed last week")}
+        ${completedSection(completedByWS)}
       </div>
     </div>
     <div>
@@ -1986,7 +2046,7 @@ function renderWeeklyAnalysis(){
           <label style="font-size:11px;color:var(--text2)">To</label>
           <input type="date" value="${(waf.dateTo||(String(_nextSun.getFullYear())+'-'+String(_nextSun.getMonth()+1).padStart(2,'0')+'-'+String(_nextSun.getDate()).padStart(2,'0')))}" onchange="G.waFilter.dateTo=this.value;render()" style="font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer">
         </div>
-        ${wsSection(upcomingByWS,"Nothing due this week")}
+        ${wsSection(upcomingByWS,"Nothing due this week",true)}
       </div>
     </div>
   </div>`;
